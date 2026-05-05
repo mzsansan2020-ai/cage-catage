@@ -6404,6 +6404,7 @@ function refreshRoomUI() {
 
 async function applyRoomFromUI() {
   const input = document.getElementById("roomIdInput");
+  const previousRoomId = currentRoomId;
   const nextRoomId = normalizeRoomId(input ? input.value : currentRoomId);
   currentRoomId = nextRoomId;
   localStorage.setItem("catanRoomId", currentRoomId);
@@ -6411,12 +6412,15 @@ async function applyRoomFromUI() {
 
   if (typeof window.firebaseSetRoom === "function") {
     try {
-      await window.firebaseSetRoom(currentRoomId);
+      const result = await window.firebaseSetRoom(currentRoomId);
       showToast("ルームを切り替えました");
-      log("ルームを切り替えました：" + currentRoomId);
+      log("ルームを切り替えました：" + currentRoomId + (result && result.created ? "（新規ルーム）" : ""));
     } catch (error) {
       console.error(error);
-      alert("ルーム切り替えに失敗しました。Firebaseの接続を確認してください。");
+      currentRoomId = previousRoomId;
+      localStorage.setItem("catanRoomId", currentRoomId);
+      refreshRoomUI();
+      alert("ルーム切り替えに失敗しました。現在のルームのままに戻しました。Firebaseの接続を確認してください。");
     }
   } else {
     log("ルームIDを設定しました：" + currentRoomId);
@@ -6433,7 +6437,7 @@ window.refreshRoomUI = refreshRoomUI;
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v156-room-id",
+    version: "v157-room-empty-safe",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6474,6 +6478,7 @@ function getBoardSaveData() {
     logHTML: document.getElementById("log") ? document.getElementById("log").innerHTML : ""
   };
 }
+window.getBoardSaveDataForFirebase = getBoardSaveData;
 
 function applyBoardSaveData(data) {
   if (!data || !Array.isArray(data.deck) || !Array.isArray(data.numbers)) {
@@ -6680,13 +6685,26 @@ async function loadBoardFromCloud() {
     boardRef = doc(db, "boards", safeId);
     startRealtimeListener();
 
+    let created = false;
     if (loadAfterSwitch) {
       const snap = await getDoc(boardRef);
       if (snap.exists() && typeof window.applyRealtimeBoardData === "function") {
         window.applyRealtimeBoardData(snap.data());
+      } else {
+        // まだ保存データがない新規ルームの場合は、画面を消さずに現在の状態を初期データとして保存します。
+        created = true;
+        if (typeof window.getBoardSaveDataForFirebase === "function") {
+          const initialData = window.getBoardSaveDataForFirebase();
+          await setDoc(boardRef, {
+            ...initialData,
+            roomId: safeId,
+            updatedByClientId: clientId,
+            cloudUpdatedAt: Date.now()
+          }, { merge: true });
+        }
       }
     }
-    return safeId;
+    return { roomId: safeId, created };
   }
 
   window.firebaseSetRoom = async function(roomId) {
