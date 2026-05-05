@@ -3468,7 +3468,7 @@ function updateRobberStatus() {
   const num = numbers[robberTileIndex];
   const label = resourceName[type] || type;
   document.getElementById("robberStatus").textContent =
-    "盗賊：" + label + "タイル" + (num ? "（数字 " + num + "）" : "") + (robberMode ? " / 移動先をクリックしてください" : "");
+    "盗賊：" + label + "タイル" + (num ? "（数字 " + num + "）" : "") + (robberMode ? " / 必ず別のタイルへ移動してください" : "");
 }
 
 function startRobberMode() {
@@ -3764,18 +3764,20 @@ function moveRobber(tileIndex) {
   if (tileIndex === null || tileIndex === undefined) return;
   const movingPlayer = Number(document.getElementById("playerSelect").value);
 
-  if (tileIndex === robberTileIndex) {
-    log("盗賊はすでにそのタイルにいます。");
-    robberMode = false;
-    clearRobberTargetSelect();
-    pendingRobberSteal = false;
-    pendingRobberPlayer = null;
-    currentPhase = "build";
+  if (typeof getSelfPlayer === "function" && getSelfPlayer() !== movingPlayer) {
+    log("盗賊を移動できるのはターンプレイヤーだけです。");
+    robberMode = true;
+    currentPhase = "robber";
     updateRobberStatus();
-    updateDevCardUI();
-    updateLargestArmyTable();
-    updateVictoryTable();
-    checkVictory();
+    redraw();
+    return;
+  }
+
+  if (tileIndex === robberTileIndex) {
+    log("盗賊は必ず別のタイルへ移動してください。現在盗賊がいるタイルには置けません。");
+    robberMode = true;
+    currentPhase = "robber";
+    updateRobberStatus();
     redraw();
     return;
   }
@@ -3816,6 +3818,11 @@ function moveRobber(tileIndex) {
 
 
 function confirmRobberSteal() {
+  if (typeof getSelfPlayer === "function" && getSelfPlayer() !== getCurrentPlayer()) {
+    log("盗賊で資源を奪えるのはターンプレイヤーだけです。");
+    return;
+  }
+
   if (!pendingRobberSteal || pendingRobberPlayer === null) {
     log("盗賊：現在、資源を奪う処理はありません。");
     clearRobberTargetSelect();
@@ -4338,11 +4345,13 @@ function setGamePhase(phase, shouldRedraw = true) {
 function updateDiceButtonState() {
   const btn = document.getElementById("boardDiceButton");
   if (!btn) return;
-  const locked = !!hasRolledDice || (typeof isRobberProcessActive === "function" && isRobberProcessActive());
+  const isSelfTurn = (typeof getSelfPlayer === "function" && getSelfPlayer() === getCurrentPlayer());
+  const locked = !isSelfTurn || !!hasRolledDice || (typeof isRobberProcessActive === "function" && isRobberProcessActive());
   btn.disabled = locked;
   btn.style.opacity = locked ? "0.55" : "1";
   btn.style.cursor = locked ? "not-allowed" : "pointer";
-  btn.title = hasRolledDice ? "このターンではすでにダイスを振っています" : "";
+  if (!isSelfTurn) btn.title = "ダイスを振れるのはターンプレイヤーだけです";
+  else btn.title = hasRolledDice ? "このターンではすでにダイスを振っています" : "";
 }
 
 function drawPhaseBanner() {
@@ -4654,6 +4663,10 @@ canvas.addEventListener("click", e => {
   const my = (e.clientY - rect.top) * (canvas.height / rect.height);
 
   if (robberMode) {
+    if (typeof getSelfPlayer === "function" && getSelfPlayer() !== getCurrentPlayer()) {
+      log("盗賊を移動できるのはターンプレイヤーだけです。");
+      return;
+    }
     const tileIdx = findClickedTile(mx, my);
     if (tileIdx !== null) moveRobber(tileIdx);
     return;
@@ -4850,6 +4863,12 @@ function isRobberProcessActive() {
 
 
 function rollDice() {
+  if (typeof getSelfPlayer === "function" && getSelfPlayer() !== getCurrentPlayer()) {
+    log("ダイスを振れるのはターンプレイヤーだけです。");
+    updateDiceButtonState();
+    return;
+  }
+
   if (isRobberProcessActive()) {
     log("盗賊処理が完了するまでダイスは振れません。盗賊を移動し、必要なら相手を選んで「資源を奪う」を押してください。");
     updateDiceButtonState();
