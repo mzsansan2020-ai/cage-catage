@@ -1976,6 +1976,196 @@ body {
   transform: translateY(-3px);
 }
 
+
+
+/* v164: 盗賊7処理 新UIプレビュー（見た目確認用。既存処理には未接続） */
+.robberPreviewBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.48);
+  z-index: 9998;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.robberPreviewBackdrop.show { display: flex; }
+.robberModal {
+  width: min(920px, 92vw);
+  max-height: 88vh;
+  background: #fff;
+  border: 4px solid var(--robber-color, #c62828);
+  border-radius: 16px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.robberModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px;
+  background: linear-gradient(180deg, var(--robber-color, #c62828), var(--robber-dark, #8e0000));
+  color: #fff;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: .08em;
+}
+.robberHeaderLeft { display:flex; align-items:center; gap:12px; }
+.robberPieceIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px 10px 6px 6px;
+  background: var(--robber-piece, #e53935);
+  box-shadow: inset -6px -7px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.28);
+  transform: perspective(60px) rotateX(8deg);
+}
+.robberModalClose {
+  border: 0;
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+.robberModalBody { padding: 18px 24px 20px; }
+.robberAlertLine {
+  border: 2px solid rgba(198,40,40,.25);
+  background: #fff7f7;
+  border-radius: 10px;
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+.robberSummaryLine {
+  display:flex;
+  justify-content:center;
+  gap:28px;
+  flex-wrap:wrap;
+  font-size:18px;
+  font-weight:800;
+  margin: 8px 0 18px;
+}
+.robberSummaryLine .ok { color:#168a2f; }
+.robberResourceGrid {
+  display:grid;
+  grid-template-columns: repeat(5, minmax(115px, 1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.robberResourceCard {
+  border:1px solid #ddd;
+  border-radius:12px;
+  overflow:hidden;
+  background:#fafafa;
+  box-shadow:0 2px 5px rgba(0,0,0,.08);
+}
+.robberResourceTitle {
+  color:#fff;
+  font-size:22px;
+  font-weight:900;
+  text-align:center;
+  padding:8px 4px;
+}
+.robberResourceCard.forest .robberResourceTitle { background:#2f8f1f; }
+.robberResourceCard.wheat .robberResourceTitle { background:#e5b51b; }
+.robberResourceCard.ore .robberResourceTitle { background:#888; }
+.robberResourceCard.brick .robberResourceTitle { background:#df7018; }
+.robberResourceCard.sheep .robberResourceTitle { background:#78b84b; }
+.robberResourceInner { padding:10px 8px 12px; text-align:center; }
+.robberResourceSub { font-size:12px; font-weight:700; color:#444; }
+.robberResourceIcon { font-size:28px; line-height:1.2; margin:6px 0; }
+.robberCounterRow {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+}
+.robberCounterRow button {
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  border:1px solid #bbb;
+  background:#f2f2f2;
+  font-size:22px;
+  font-weight:900;
+  cursor:pointer;
+}
+.robberCountValue { min-width:38px; font-size:28px; font-weight:900; }
+.robberFakeSlider {
+  height:7px;
+  border-radius:999px;
+  background:#d7d7d7;
+  margin:10px 10px 0;
+  overflow:hidden;
+}
+.robberFakeSlider > span { display:block; height:100%; width:0%; background:var(--robber-color, #c62828); }
+.robberProgressArea {
+  border-top:1px solid #ddd;
+  padding-top:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.robberProgressText { font-size:18px; font-weight:900; }
+.robberProgressText .selected { color:#168a2f; }
+.robberActionButtons { display:flex; gap:12px; align-items:center; }
+.robberCancelBtn, .robberConfirmBtn, .robberPreviewSwitchBtn {
+  border-radius:12px;
+  border:2px solid #bbb;
+  padding:12px 28px;
+  font-size:18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.robberCancelBtn { background:#eee; color:#222; }
+.robberPreviewSwitchBtn { background:#fff; color:#333; }
+.robberConfirmBtn {
+  background: linear-gradient(180deg, var(--robber-piece, #e53935), var(--robber-dark, #8e0000));
+  color:#fff;
+  border-color: var(--robber-color, #c62828);
+  min-width:240px;
+}
+.robberConfirmBtn:disabled { opacity:.55; cursor:not-allowed; }
+.robberNote { font-size:13px; color:#555; text-align:center; margin-top:8px; }
+.robberWaitingBox {
+  display:none;
+  text-align:center;
+  padding:36px 24px 42px;
+}
+.robberWaitingTitle { font-size:28px; font-weight:900; margin-bottom:12px; }
+.robberWaitingText { font-size:18px; font-weight:700; margin-bottom:22px; }
+.robberQueueRow { display:flex; align-items:center; justify-content:center; gap:20px; font-size:26px; }
+.robberQueuePlayer { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:14px; font-weight:800; color:#333; }
+.robberQueueIcon { width:44px; height:44px; border-radius:50%; background:#ccc; box-shadow: inset -5px -6px rgba(0,0,0,.15); }
+.robberQueueIcon.red { background:#e53935; }
+.robberQueueIcon.blue { background:#1e88e5; }
+.robberQueueIcon.gray { background:#bbb; }
+.robberModal.waiting .robberActiveContent { display:none; }
+.robberModal.waiting .robberWaitingBox { display:block; }
+.robberPreviewButton {
+  margin-top:8px;
+  width:100%;
+  border:1px dashed #b33;
+  background:#fff7f7;
+  color:#9b1111;
+  font-weight:700;
+}
+@media (max-width: 760px) {
+  .robberResourceGrid { grid-template-columns: repeat(2, minmax(120px,1fr)); }
+  .robberModalHeader { font-size:22px; }
+}
+
 </style>
 
 <style>
@@ -2161,6 +2351,7 @@ body {
               <button onclick="applyRoomFromUI()">ルームを反映</button>
               <div id="currentRoomDisplay" style="font-size:12px;margin-top:8px;color:#555;">現在のルーム：1</div>
               <div id="roomPresenceDisplay" style="font-size:14px;margin-top:8px;color:#111;font-weight:700;border-top:1px solid #ddd;padding-top:6px;">接続人数：確認中...</div>
+              <button class="robberPreviewButton" onclick="showRobberUiPreview(false)">盗賊UIプレビュー</button>
             </div>
           </div>
         </details>
@@ -6638,6 +6829,79 @@ async function loadBoardFromCloud() {
 </script>
 
 
+<script>
+
+// ===== v164: 盗賊7処理 新UIプレビュー（見た目確認用。既存処理には未接続） =====
+const robberPreviewHoldings = { forest: 5, wheat: 4, ore: 3, brick: 6, sheep: 7 };
+let robberPreviewSelectedCounts = { forest: 0, wheat: 0, ore: 0, brick: 0, sheep: 0 };
+function getRobberPreviewThemeColor() {
+  const p = typeof getCurrentPlayer === 'function' ? getCurrentPlayer() : 0;
+  const themes = [
+    { color: '#c62828', dark: '#8e0000', piece: '#e53935', name: '赤' },
+    { color: '#1565c0', dark: '#003c8f', piece: '#1e88e5', name: '青' },
+    { color: '#2e7d32', dark: '#005005', piece: '#43a047', name: '緑' },
+    { color: '#e0a800', dark: '#a87800', piece: '#ffca28', name: '黄' }
+  ];
+  return themes[p] || themes[0];
+}
+function showRobberUiPreview(waiting) {
+  const backdrop = document.getElementById('robberPreviewBackdrop');
+  const modal = document.getElementById('robberPreviewModal');
+  if (!backdrop || !modal) return;
+  const theme = getRobberPreviewThemeColor();
+  modal.style.setProperty('--robber-color', theme.color);
+  modal.style.setProperty('--robber-dark', theme.dark);
+  modal.style.setProperty('--robber-piece', theme.piece);
+  modal.classList.toggle('waiting', !!waiting);
+  const total = Object.values(robberPreviewHoldings).reduce((a,b)=>a+b,0);
+  const need = Math.floor(total / 2);
+  const alert = document.getElementById('robberPreviewAlert');
+  if (alert) alert.textContent = theme.name + 'のプレイヤーは資源を' + need + '枚捨ててください。';
+  robberPreviewSelectedCounts = { forest: 0, wheat: 0, ore: 0, brick: 0, sheep: 0 };
+  updateRobberPreviewUi();
+  backdrop.classList.add('show');
+  backdrop.setAttribute('aria-hidden', 'false');
+}
+function hideRobberUiPreview() {
+  const backdrop = document.getElementById('robberPreviewBackdrop');
+  if (!backdrop) return;
+  backdrop.classList.remove('show');
+  backdrop.setAttribute('aria-hidden', 'true');
+}
+function changeRobberPreviewCount(type, delta) {
+  if (!(type in robberPreviewSelectedCounts)) return;
+  const max = robberPreviewHoldings[type] || 0;
+  const next = Math.max(0, Math.min(max, robberPreviewSelectedCounts[type] + delta));
+  robberPreviewSelectedCounts[type] = next;
+  updateRobberPreviewUi();
+}
+function updateRobberPreviewUi() {
+  const types = ['forest','wheat','ore','brick','sheep'];
+  const total = Object.values(robberPreviewHoldings).reduce((a,b)=>a+b,0);
+  const need = Math.floor(total / 2);
+  const selected = Object.values(robberPreviewSelectedCounts).reduce((a,b)=>a+b,0);
+  const totalEl = document.getElementById('robberPreviewTotal');
+  const needEl = document.getElementById('robberPreviewNeed');
+  const selectedEl = document.getElementById('robberPreviewSelected');
+  const selected2El = document.getElementById('robberPreviewSelected2');
+  const confirm = document.getElementById('robberPreviewConfirm');
+  if (totalEl) totalEl.textContent = total;
+  if (needEl) needEl.textContent = need;
+  if (selectedEl) selectedEl.textContent = selected + ' / ' + need;
+  if (selected2El) selected2El.textContent = selected + ' / ' + need + '枚';
+  if (confirm) confirm.disabled = selected !== need;
+  types.forEach(type => {
+    const countEl = document.getElementById('robberPreviewCount_' + type);
+    const barEl = document.getElementById('robberPreviewBar_' + type);
+    if (countEl) countEl.textContent = robberPreviewSelectedCounts[type];
+    if (barEl) {
+      const max = robberPreviewHoldings[type] || 1;
+      barEl.style.width = Math.round((robberPreviewSelectedCounts[type] / max) * 100) + '%';
+    }
+  });
+}
+
+</script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { initializeFirestore, doc, collection, setDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -6788,6 +7052,59 @@ async function loadBoardFromCloud() {
   startPresence();
   console.log("Firebase connected", clientId, "room", currentRoomIdForFirebase);
 </script>
+
+
+
+  <!-- v164: 盗賊7処理 新UIプレビュー（見た目確認用。既存処理には未接続） -->
+  <div id="robberPreviewBackdrop" class="robberPreviewBackdrop" aria-hidden="true">
+    <div id="robberPreviewModal" class="robberModal" role="dialog" aria-modal="true" aria-label="盗賊処理UIプレビュー">
+      <div class="robberModalHeader">
+        <div class="robberHeaderLeft">
+          <div class="robberPieceIcon"></div>
+          <div>盗賊が現れた！！</div>
+        </div>
+        <button class="robberModalClose" onclick="hideRobberUiPreview()" aria-label="閉じる">×</button>
+      </div>
+      <div class="robberModalBody">
+        <div class="robberActiveContent">
+          <div class="robberAlertLine" id="robberPreviewAlert">赤のプレイヤーは資源を2枚捨ててください。</div>
+          <div class="robberSummaryLine">
+            <span>現在の総数：<b id="robberPreviewTotal">9</b>枚</span>
+            <span>捨てる必要：<b id="robberPreviewNeed">4</b>枚</span>
+            <span class="ok">選択中：<b id="robberPreviewSelected">0 / 4</b>枚</span>
+          </div>
+          <div class="robberResourceGrid">
+            <div class="robberResourceCard forest" data-type="forest"><div class="robberResourceTitle">木</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌲</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('forest',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_forest">0</span><button onclick="changeRobberPreviewCount('forest',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_forest"></span></div></div></div>
+            <div class="robberResourceCard wheat" data-type="wheat"><div class="robberResourceTitle">麦</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌾</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('wheat',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_wheat">0</span><button onclick="changeRobberPreviewCount('wheat',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_wheat"></span></div></div></div>
+            <div class="robberResourceCard ore" data-type="ore"><div class="robberResourceTitle">鉄</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🪨</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('ore',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_ore">0</span><button onclick="changeRobberPreviewCount('ore',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_ore"></span></div></div></div>
+            <div class="robberResourceCard brick" data-type="brick"><div class="robberResourceTitle">レンガ</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🧱</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('brick',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_brick">0</span><button onclick="changeRobberPreviewCount('brick',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_brick"></span></div></div></div>
+            <div class="robberResourceCard sheep" data-type="sheep"><div class="robberResourceTitle">羊</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🐑</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('sheep',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_sheep">0</span><button onclick="changeRobberPreviewCount('sheep',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_sheep"></span></div></div></div>
+          </div>
+          <div class="robberProgressArea">
+            <div class="robberProgressText">選択中：<span class="selected" id="robberPreviewSelected2">0 / 4枚</span></div>
+            <div class="robberActionButtons">
+              <button class="robberPreviewSwitchBtn" onclick="showRobberUiPreview(true)">待機画面を見る</button>
+              <button class="robberCancelBtn" onclick="hideRobberUiPreview()">キャンセル</button>
+              <button id="robberPreviewConfirm" class="robberConfirmBtn" disabled>確定して捨てる</button>
+            </div>
+          </div>
+          <div class="robberNote">※ v164は見た目確認用です。このボタンはまだ実際の資源処理には接続していません。</div>
+        </div>
+        <div class="robberWaitingBox">
+          <div class="robberWaitingTitle">盗賊が現れた！！</div>
+          <div class="robberWaitingText">他のプレイヤーの処理を待っています。</div>
+          <div class="robberQueueRow">
+            <div class="robberQueuePlayer"><span class="robberQueueIcon red"></span><span>赤（処理中）</span></div>
+            <span>→</span>
+            <div class="robberQueuePlayer"><span class="robberQueueIcon blue"></span><span>青（待機中）</span></div>
+            <span>→</span>
+            <div class="robberQueuePlayer"><span class="robberQueueIcon gray"></span><span>盗賊の移動へ</span></div>
+          </div>
+          <div style="margin-top:24px;"><button class="robberPreviewSwitchBtn" onclick="showRobberUiPreview(false)">処理中UIを見る</button> <button class="robberCancelBtn" onclick="hideRobberUiPreview()">閉じる</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>
