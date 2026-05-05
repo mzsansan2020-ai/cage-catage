@@ -2830,7 +2830,138 @@ body {
 }
 
 @media (max-width: 900px) { .gameStartGrid { grid-template-columns:1fr; } }
+
+
+/* v201: 盗賊出現演出UI（本番用・ダイス7接続） */
+.robberAppearedOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99980;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(184, 28, 28, .26), transparent 33%),
+    rgba(0, 0, 0, .58);
+  opacity: 0;
+  transition: opacity .42s ease;
+}
+.robberAppearedOverlay.show {
+  display: flex;
+  opacity: 1;
+}
+.robberAppearedCard {
+  position: relative;
+  width: min(620px, 72vw);
+  min-height: 225px;
+  border-radius: 20px;
+  border: 3px solid var(--robber-alert-color, #c62828);
+  background:
+    linear-gradient(180deg, rgba(42, 21, 13, .96), rgba(18, 13, 11, .97)),
+    radial-gradient(circle at 50% 0%, rgba(255, 130, 40, .18), transparent 45%);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, .58),
+    0 0 42px color-mix(in srgb, var(--robber-alert-color, #c62828) 48%, transparent),
+    inset 0 0 0 1px rgba(255, 230, 190, .18);
+  transform: translateY(18px) scale(.92);
+  opacity: 0;
+  overflow: hidden;
+}
+.robberAppearedOverlay.show .robberAppearedCard {
+  animation: robberAppearedPop 2.75s ease forwards;
+}
+.robberAppearedCard::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 218, 170, .22);
+  pointer-events: none;
+}
+.robberAppearedCard::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -62px;
+  width: 180px;
+  height: 180px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--robber-alert-color, #c62828) 72%, #ff8a00) 0%, transparent 64%);
+  opacity: .42;
+  filter: blur(2px);
+}
+.robberAppearedHood {
+  position: absolute;
+  left: 50%;
+  top: 19px;
+  width: 88px;
+  height: 96px;
+  transform: translateX(-50%);
+  border-radius: 48% 48% 42% 42%;
+  background: linear-gradient(150deg, #0b0b0d, #1c1512 58%, #080808);
+  border: 2px solid rgba(255, 230, 190, .25);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--robber-alert-color, #c62828) 58%, transparent);
+  z-index: 1;
+}
+.robberAppearedHood::before,
+.robberAppearedHood::after {
+  content: "";
+  position: absolute;
+  top: 42px;
+  width: 14px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ff2b1f;
+  box-shadow: 0 0 9px #ff2b1f;
+}
+.robberAppearedHood::before { left: 24px; transform: rotate(12deg); }
+.robberAppearedHood::after { right: 24px; transform: rotate(-12deg); }
+.robberAppearedTitle {
+  position: relative;
+  z-index: 2;
+  margin-top: 114px;
+  text-align: center;
+  font-size: clamp(38px, 5.2vw, 64px);
+  line-height: 1;
+  font-weight: 1000;
+  letter-spacing: .04em;
+  color: #fff0d6;
+  text-shadow:
+    0 3px 0 #4d0d0d,
+    0 0 10px var(--robber-alert-color, #c62828),
+    0 0 24px color-mix(in srgb, var(--robber-alert-color, #c62828) 70%, transparent);
+}
+.robberAppearedSub {
+  position: relative;
+  z-index: 2;
+  margin-top: 18px;
+  text-align: center;
+  font-size: clamp(17px, 2vw, 23px);
+  font-weight: 900;
+  color: rgba(255, 255, 255, .92);
+  text-shadow: 0 2px 6px rgba(0,0,0,.7);
+}
+.robberAppearedSpark {
+  position: absolute;
+  inset: auto 28px 22px 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--robber-alert-color, #c62828), #ffdf8a, var(--robber-alert-color, #c62828), transparent);
+  opacity: .82;
+}
+@keyframes robberAppearedPop {
+  0% { transform: translateY(28px) scale(.82); opacity: 0; filter: blur(2px); }
+  13% { transform: translateY(0) scale(1.035); opacity: 1; filter: blur(0); }
+  22% { transform: translateY(0) scale(1); opacity: 1; }
+  76% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-8px) scale(.985); opacity: 0; }
+}
 </style>
+
+
+
 
 </head>
 <body>
@@ -3084,6 +3215,10 @@ body {
         <div class="categoryGroup gameStartGroup">
           <div class="categoryTitle">開始</div>
           <button class="gameStartTopButton" onclick="openGameStartSetupPreview()">ゲームスタート</button>
+        </div>
+        <div class="categoryGroup">
+          <div class="categoryTitle">テスト</div>
+          <button class="miniButton" onclick="showRobberAppearedTest()">盗賊演出確認</button>
         </div>
         <div class="categoryGroup">
           <div class="categoryTitle">家</div>
@@ -5329,6 +5464,9 @@ async function rollDice() {
   redraw();
 
   if (total === 7) {
+    const robberAppearedEvent = makeRobberAppearedEvent(getCurrentPlayer());
+    showRobberAppeared(robberAppearedEvent.color);
+    await publishRobberAppearedEvent(robberAppearedEvent);
     currentPhase = "robber";
     updateDiceButtonState();
     startSevenDiscardProcess();
@@ -7395,6 +7533,7 @@ let cloudAutoSaveTimer = null;
 let applyingCloudUpdate = false;
 let cloudRealtimeReady = false;
 let lastSeenDiceAnimationEventId = null;
+let lastSeenRobberAppearedEventId = null;
 
 function makeDiceAnimationEvent(kind, player, d1, d2) {
   return {
@@ -7434,6 +7573,23 @@ function handleRealtimeDiceAnimationEvent(event) {
   }).catch(e => console.warn('realtime dice animation skipped', e));
 }
 
+async function publishRobberAppearedEvent(event) {
+  lastSeenRobberAppearedEventId = event && event.id ? event.id : lastSeenRobberAppearedEventId;
+  if (typeof window.firebasePublishRobberAppeared !== 'function' || !event) return;
+  try { await window.firebasePublishRobberAppeared(event); }
+  catch (e) { console.warn('robber appeared sync skipped', e); }
+}
+
+function handleRealtimeRobberAppearedEvent(event) {
+  if (!event || !event.id || event.id === lastSeenRobberAppearedEventId) return;
+  if (event.startedAt && Date.now() - Number(event.startedAt) > 8000) {
+    lastSeenRobberAppearedEventId = event.id;
+    return;
+  }
+  lastSeenRobberAppearedEventId = event.id;
+  showRobberAppeared(event.color || getPlayerColorKey(Number(event.player)));
+}
+
 // リアルタイム同期用：この端末で操作があったあと、自動保存する
 window.__catanCloudLastUserActionAt = 0;
 function markUserActionForCloudSave() {
@@ -7468,6 +7624,7 @@ window.applyRealtimeBoardData = function(data) {
     applyBoardSaveData(data);
     handleRealtimeGameStartLobby(data.gameStartLobby);
     handleRealtimeDiceAnimationEvent(data.diceAnimationEvent);
+    handleRealtimeRobberAppearedEvent(data.robberAppearedEvent);
     if (cloudRealtimeReady) showToast("盤面を自動更新しました");
     cloudRealtimeReady = true;
   } finally {
@@ -7514,6 +7671,54 @@ async function loadBoardFromCloud() {
 
 
 <script>
+
+
+// ===== v201: 盗賊出現演出UI（本番用・ダイス7接続） =====
+let robberAppearedTimer = null;
+function showRobberAppeared(color) {
+  const overlay = document.getElementById('robberAppearedOverlay');
+  if (!overlay) return;
+  const palette = {
+    red: '#c62828',
+    blue: '#1565c0',
+    green: '#2e7d32',
+    yellow: '#d08a00'
+  };
+  const accent = palette[color] || '#c62828';
+  overlay.style.setProperty('--robber-alert-color', accent);
+  overlay.classList.remove('show');
+  void overlay.offsetHeight; // アニメーションを毎回最初から再生
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden', 'false');
+  clearTimeout(robberAppearedTimer);
+  robberAppearedTimer = setTimeout(() => {
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+  }, 2800);
+}
+function showRobberAppearedTest(color) {
+  showRobberAppeared(color || getPlayerColorKey(getCurrentPlayer()));
+}
+function getPlayerColorKey(player) {
+  const colorNames = ['red', 'blue', 'green', 'yellow'];
+  if (Array.isArray(playerColors) && playerColors[player]) {
+    const c = String(playerColors[player]).toLowerCase();
+    if (colorNames.includes(c)) return c;
+    if (c.includes('赤') || c.includes('red')) return 'red';
+    if (c.includes('青') || c.includes('blue')) return 'blue';
+    if (c.includes('緑') || c.includes('green')) return 'green';
+    if (c.includes('黄') || c.includes('yellow')) return 'yellow';
+  }
+  return colorNames[Number(player)] || 'red';
+}
+function makeRobberAppearedEvent(player) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    player: Number(player),
+    color: getPlayerColorKey(Number(player)),
+    startedAt: Date.now()
+  };
+}
 
 // ===== v167: 盗賊7処理 新UI（プレビュー兼・実処理接続） =====
 const robberPreviewHoldings = { forest: 5, wheat: 4, ore: 3, brick: 6, sheep: 7 };
@@ -7880,6 +8085,15 @@ function renderRobberQueueWaiting(currentPlayer) {
     }, { merge: true });
   };
 
+  window.firebasePublishRobberAppeared = async function(event) {
+    await setDoc(boardRef, {
+      robberAppearedEvent: event,
+      roomId: currentRoomIdForFirebase,
+      updatedByClientId: clientId,
+      cloudUpdatedAt: Date.now()
+    }, { merge: true });
+  };
+
   window.firebaseLoadBoard = async function() {
     const snap = await getDoc(boardRef);
     return snap.exists() ? snap.data() : null;
@@ -7920,6 +8134,17 @@ function renderRobberQueueWaiting(currentPlayer) {
 
 
   <!-- v164: 盗賊7処理 新UIプレビュー（見た目確認用。既存処理には未接続） -->
+
+  <!-- v201: 盗賊出現演出UI（本番用・ダイス7接続） -->
+  <div id="robberAppearedOverlay" class="robberAppearedOverlay" aria-hidden="true">
+    <div class="robberAppearedCard" role="status" aria-live="polite">
+      <div class="robberAppearedHood" aria-hidden="true"></div>
+      <div class="robberAppearedTitle">盗賊が現れた！</div>
+      <div class="robberAppearedSub">盗賊を移動させてください</div>
+      <div class="robberAppearedSpark" aria-hidden="true"></div>
+    </div>
+  </div>
+
   <div id="robberPreviewBackdrop" class="robberPreviewBackdrop" aria-hidden="true">
     <div id="robberPreviewModal" class="robberModal" role="dialog" aria-modal="true" aria-label="盗賊処理UIプレビュー">
       <div class="robberModalHeader">
@@ -8777,6 +9002,7 @@ function previewGameStartConfirm(){
   scheduleCloudAutoSave();
 }
 </script>
+
 
 </body>
 </html>
