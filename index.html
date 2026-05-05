@@ -4180,6 +4180,14 @@ function redraw() {
   drawDicePanel();
   drawToastMessage();
   drawVictoryBanner();
+
+  // ユーザー操作後の描画だけをFirestoreへ自動保存する
+  // 初回表示や他端末からの反映では保存しないので、別画面を勝手に上書きしません。
+  if (window.__catanCloudLastUserActionAt && Date.now() - window.__catanCloudLastUserActionAt < 3000) {
+    if (typeof scheduleCloudAutoSave === "function") {
+      scheduleCloudAutoSave();
+    }
+  }
 }
 
 function generateBoard() {
@@ -6471,6 +6479,15 @@ function applyBoardSaveData(data) {
 let cloudAutoSaveTimer = null;
 let applyingCloudUpdate = false;
 let cloudRealtimeReady = false;
+
+// リアルタイム同期用：この端末で操作があった直後だけ自動保存する
+window.__catanCloudLastUserActionAt = 0;
+document.addEventListener("click", () => {
+  window.__catanCloudLastUserActionAt = Date.now();
+}, true);
+document.addEventListener("change", () => {
+  window.__catanCloudLastUserActionAt = Date.now();
+}, true);
 
 function scheduleCloudAutoSave() {
   if (applyingCloudUpdate) return;
