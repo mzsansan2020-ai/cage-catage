@@ -2462,6 +2462,7 @@ body {
 }
 .gameStartOverlay.show { display:flex; }
 .gameStartModal {
+  position: relative;
   width: min(840px, calc(100vw - 56px));
   max-height: calc(100vh - 56px);
   overflow: auto;
@@ -2477,15 +2478,19 @@ body {
   align-items:center;
   justify-content:space-between;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 16px 64px 16px 20px;
   background: linear-gradient(180deg, #10a55a, #08783f);
   color: white;
 }
 .gameStartHeader h3 { margin:0; font-size: 24px; letter-spacing:.02em; }
 .gameStartClose {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
   border: 0;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: rgba(255,255,255,.18);
   color:white;
@@ -2561,17 +2566,30 @@ body {
   line-height:1;
   user-select:none;
 }
-.diceBox.rolling { animation: diceWobble .16s linear infinite; }
-@keyframes diceWobble {
-  0% { transform: rotate(-8deg) translateY(0); }
-  50% { transform: rotate(8deg) translateY(-4px); }
-  100% { transform: rotate(-8deg) translateY(0); }
+.diceBox.rolling { animation: diceRollJump .22s cubic-bezier(.2,.8,.2,1) infinite; }
+.diceBox.rolling:nth-child(2) { animation-delay: .07s; }
+.diceBox.settle { animation: diceSettle .28s ease-out 1; }
+@keyframes diceRollJump {
+  0% { transform: translateX(-8px) translateY(0) rotate(-22deg) scale(1); }
+  25% { transform: translateX(6px) translateY(-16px) rotate(28deg) scale(1.08); }
+  50% { transform: translateX(12px) translateY(0) rotate(72deg) scale(.98); }
+  75% { transform: translateX(-4px) translateY(-10px) rotate(118deg) scale(1.05); }
+  100% { transform: translateX(-8px) translateY(0) rotate(158deg) scale(1); }
+}
+@keyframes diceSettle {
+  0% { transform: translateY(-8px) rotate(12deg) scale(1.08); }
+  55% { transform: translateY(2px) rotate(-5deg) scale(.98); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
 }
 .diceResultBig { text-align:center; font-size: 22px; font-weight: 900; color:#d01818; min-height: 28px; }
 .autoOrderList { border:1px solid #d8dde6; border-radius:12px; overflow:hidden; background:#fff; }
 .autoOrderRow { display:grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 12px; border-bottom:1px solid #edf0f5; align-items:center; font-weight:800; }
 .autoOrderRow:last-child { border-bottom:0; }
 .autoOrderDice { color:#d01818; font-weight:900; }
+.autoOrderRow.draggable { cursor: grab; user-select:none; }
+.autoOrderRow.draggable:active { cursor: grabbing; }
+.autoOrderRow.dragging { opacity:.45; background:#eef6ff; }
+.manualDragHandle { color:#6b7280; font-weight:900; margin-right:8px; }
 .rollOrderButton {
   min-height: 44px;
   border: 0;
@@ -7688,7 +7706,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v172: ゲームスタートUI・ダイス演出プレビュー。既存のゲーム進行処理には未接続。 */
+/* v173: ゲームスタートUI・ダイス演出プレビュー調整。既存のゲーム進行処理には未接続。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -7698,11 +7716,17 @@ const GSP_COLORS = [
 let gspCount = 2;
 let gspOrderMode = 'manual';
 let gspRolling = false;
+let gspManualOrder = [0,1,2,3];
+let gspNames = ['赤','青','緑','黄'];
+let gspDragIndex = null;
+
 function openGameStartSetupPreview(){
   try {
     const countSelect = document.getElementById('playerCountSelect');
     if (countSelect) gspCount = parseInt(countSelect.value || '2', 10) || 2;
   } catch(e) {}
+  gspNames = GSP_COLORS.map((_, i) => getGspNameFromMain(i));
+  gspManualOrder = normalizeGspManualOrder();
   renderGameStartSetupPreview();
   const overlay = document.getElementById('gameStartOverlay');
   if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
@@ -7712,17 +7736,35 @@ function closeGameStartSetupPreview(){
   if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); }
 }
 function setGameStartPreviewCount(n){
+  syncGspNamesFromInputs();
   gspCount = Math.max(2, Math.min(4, Number(n)||2));
+  gspManualOrder = normalizeGspManualOrder();
   renderGameStartSetupPreview();
 }
 function setGameStartOrderMode(mode){
+  syncGspNamesFromInputs();
   gspOrderMode = mode === 'auto' ? 'auto' : 'manual';
   renderGameStartSetupPreview(false);
 }
-function getGspName(i){
+function getGspNameFromMain(i){
   const ids = ['playerName0','playerName1','playerName2','playerName3'];
   const el = document.getElementById(ids[i]);
   return (el && el.value ? el.value : GSP_COLORS[i].label);
+}
+function getGspName(i){
+  return (gspNames[i] && String(gspNames[i]).trim()) ? String(gspNames[i]).trim() : GSP_COLORS[i].label;
+}
+function syncGspNamesFromInputs(){
+  GSP_COLORS.forEach((_, i) => {
+    const el = document.getElementById('gspName' + i);
+    if (el) gspNames[i] = el.value || GSP_COLORS[i].label;
+  });
+}
+function normalizeGspManualOrder(){
+  const active = Array.from({length:gspCount}, (_, i) => i);
+  const kept = (gspManualOrder || []).filter(i => active.includes(i));
+  active.forEach(i => { if (!kept.includes(i)) kept.push(i); });
+  return kept;
 }
 function renderGameStartSetupPreview(resetList=true){
   [2,3,4].forEach(n => { const b=document.getElementById('gspCount'+n); if(b) b.classList.toggle('active', n===gspCount); });
@@ -7730,23 +7772,71 @@ function renderGameStartSetupPreview(resetList=true){
   if (manual) manual.classList.toggle('active', gspOrderMode==='manual');
   if (auto) auto.classList.toggle('active', gspOrderMode==='auto');
   const hint=document.getElementById('gspModeHint');
-  if (hint) hint.textContent = gspOrderMode === 'auto' ? '自動の場合は、ダイス演出のあと出目の大きい順に並べる想定です。' : '手動の場合は、プレイヤー名の並び順をそのままターン順として使う想定です。';
+  if (hint) hint.textContent = gspOrderMode === 'auto' ? '自動の場合は、ダイス演出のあと出目の大きい順に並べる想定です。' : '手動の場合は、右側の順番リストをドラッグして並び替えできます。';
+  const panelTitle = document.querySelector('.dicePreviewPanel h4');
+  if (panelTitle) panelTitle.textContent = gspOrderMode === 'auto' ? '自動で順番を決める' : '手動で順番を決める';
+  const rollBtn = document.getElementById('gspRollBtn');
+  if (rollBtn) rollBtn.style.display = gspOrderMode === 'auto' ? '' : 'none';
+  const rightHint = document.querySelector('.dicePreviewPanel .gspHint');
+  if (rightHint) rightHint.textContent = gspOrderMode === 'auto' ? '自動で決める場合は、演出後に各プレイヤーの出目を表示し、大きい順に並べる想定です。' : '行をつかんで上下にドラッグすると、手動で順番を入れ替えできます。';
   const rows=document.getElementById('gspPlayerRows');
   if (rows) {
     rows.innerHTML = GSP_COLORS.map((c,i)=>{
       const disabled = i >= gspCount;
-      return `<div class="gspPlayerRow" style="${disabled?'opacity:.45;':''}"><div class="gspColorLabel"><span class="gspDot ${c.key}"></span>${c.label}</div><input id="gspName${i}" value="${escapeHtml(getGspName(i))}" ${disabled?'disabled':''}></div>`;
+      return `<div class="gspPlayerRow" style="${disabled?'opacity:.45;':''}"><div class="gspColorLabel"><span class="gspDot ${c.key}"></span>${c.label}</div><input id="gspName${i}" value="${escapeHtml(getGspName(i))}" ${disabled?'disabled':''} oninput="syncGspNamesFromInputs(); if(gspOrderMode==='manual') renderGspManualOrderList();"></div>`;
     }).join('');
   }
-  if (resetList) {
-    const list=document.getElementById('gspOrderList');
-    if (list) list.innerHTML = GSP_COLORS.slice(0,gspCount).map((c,i)=>`<div class="autoOrderRow"><span><span class="gspDot ${c.key}"></span> ${escapeHtml(getGspName(i))}</span><span class="autoOrderDice">未決定</span></div>`).join('');
-    const total=document.getElementById('gspDiceTotal'); if(total) total.textContent='ダイス演出プレビュー';
+  if (resetList || gspOrderMode === 'manual') {
+    if (gspOrderMode === 'manual') renderGspManualOrderList();
+    else renderGspAutoWaitingList();
+    const total=document.getElementById('gspDiceTotal'); if(total) total.textContent = gspOrderMode === 'auto' ? 'ダイス演出プレビュー' : 'ドラッグで順番を変更できます';
   }
 }
+function renderGspAutoWaitingList(){
+  const list=document.getElementById('gspOrderList');
+  if (!list) return;
+  list.innerHTML = GSP_COLORS.slice(0,gspCount).map((c,i)=>`<div class="autoOrderRow"><span><span class="gspDot ${c.key}"></span> ${escapeHtml(getGspName(i))}</span><span class="autoOrderDice">未決定</span></div>`).join('');
+}
+function renderGspManualOrderList(){
+  const list=document.getElementById('gspOrderList');
+  if (!list) return;
+  gspManualOrder = normalizeGspManualOrder();
+  list.innerHTML = gspManualOrder.map((playerIndex, order)=>{
+    const c = GSP_COLORS[playerIndex];
+    return `<div class="autoOrderRow draggable" draggable="true" data-order="${order}"><span><span class="manualDragHandle">☰</span>${order+1}. <span class="gspDot ${c.key}"></span> ${escapeHtml(getGspName(playerIndex))}</span><span class="autoOrderDice">手動</span></div>`;
+  }).join('');
+  list.querySelectorAll('.autoOrderRow.draggable').forEach(row => {
+    row.addEventListener('dragstart', (ev) => {
+      gspDragIndex = Number(row.dataset.order);
+      row.classList.add('dragging');
+      if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => { row.classList.remove('dragging'); gspDragIndex = null; });
+    row.addEventListener('dragover', (ev) => { ev.preventDefault(); if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move'; });
+    row.addEventListener('drop', (ev) => {
+      ev.preventDefault();
+      const dropIndex = Number(row.dataset.order);
+      if (gspDragIndex === null || gspDragIndex === dropIndex) return;
+      const moved = gspManualOrder.splice(gspDragIndex, 1)[0];
+      gspManualOrder.splice(dropIndex, 0, moved);
+      renderGspManualOrderList();
+    });
+  });
+}
 function diceFace(n){ return ['⚀','⚁','⚂','⚃','⚄','⚅'][Math.max(1,Math.min(6,n))-1]; }
+function settleDice(d1, d2){
+  [d1,d2].forEach(d => {
+    if (!d) return;
+    d.classList.remove('rolling');
+    d.classList.remove('settle');
+    void d.offsetWidth;
+    d.classList.add('settle');
+    setTimeout(() => d.classList.remove('settle'), 320);
+  });
+}
 function rollGameStartOrderPreview(){
   if (gspRolling) return;
+  syncGspNamesFromInputs();
   gspRolling = true;
   gspOrderMode = 'auto';
   renderGameStartSetupPreview(false);
@@ -7756,7 +7846,7 @@ function rollGameStartOrderPreview(){
   const results=[]; let idx=0;
   const rollOne=()=>{
     if (idx >= gspCount) {
-      if(d1) d1.classList.remove('rolling'); if(d2) d2.classList.remove('rolling');
+      settleDice(d1,d2);
       results.sort((a,b)=> b.total-a.total);
       const list=document.getElementById('gspOrderList');
       if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
@@ -7765,29 +7855,32 @@ function rollGameStartOrderPreview(){
       gspRolling=false;
       return;
     }
-    const playerName = (document.getElementById('gspName'+idx)?.value || getGspName(idx));
+    const playerName = getGspName(idx);
     if(total) total.textContent = `${playerName} がダイスを振っています...`;
     let ticks=0;
     const timer=setInterval(()=>{
       const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
       if(d1) d1.textContent=diceFace(a); if(d2) d2.textContent=diceFace(b);
       ticks++;
-      if(ticks>=10){
+      if(ticks>=14){
         clearInterval(timer);
         const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
         if(d1) d1.textContent=diceFace(a); if(d2) d2.textContent=diceFace(b);
+        settleDice(d1,d2);
         results.push({ name: playerName, color:GSP_COLORS[idx].key, d1:a, d2:b, total:a+b });
         const list=document.getElementById('gspOrderList');
         if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
         idx++;
-        setTimeout(rollOne, 300);
+        setTimeout(rollOne, 360);
       }
-    }, 80);
+    }, 90);
   };
   rollOne();
 }
 function previewGameStartConfirm(){
-  alert('v172はUI確認用です。次の版で実際の初期設定・順番決定に接続します。');
+  syncGspNamesFromInputs();
+  const order = gspOrderMode === 'manual' ? normalizeGspManualOrder().map(i => getGspName(i)).join(' → ') : '自動決定した順番';
+  alert('v173はUI確認用です。確認中の順番：' + order + '\n次の版で実際の初期設定・順番決定に接続します。');
 }
 </script>
 
