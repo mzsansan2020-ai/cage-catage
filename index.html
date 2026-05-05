@@ -7278,7 +7278,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v195-start-lobby-color-toggle-auto-sync",
+    version: "v196-color-claim-release-fix",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -8038,7 +8038,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v195: ゲームスタートUI同期。色選択解除・表示調整・自動順番ダイス演出同期。 */
+/* v196: 色選択変更時に前の色を確実に解放する修正。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -8065,6 +8065,16 @@ function getGspClientId(){
   return id;
 }
 function getGspClaims(){ return (gspLobby && gspLobby.claims) ? gspLobby.claims : {}; }
+
+function getGspLocalClaimKey(){
+  try { return sessionStorage.getItem('catanGspClaimedColorKey') || ''; } catch(e) { return ''; }
+}
+function setGspLocalClaimKey(key){
+  try {
+    if (key) sessionStorage.setItem('catanGspClaimedColorKey', key);
+    else sessionStorage.removeItem('catanGspClaimedColorKey');
+  } catch(e) {}
+}
 function claimToIndex(claims){
   const my = getGspClientId();
   const keys = ['red','blue','green','yellow'];
@@ -8136,6 +8146,7 @@ async function openGameStartSetupPreview(){
   } catch(e) {}
   gspNames = GSP_COLORS.map((_, i) => getGspNameFromMain(i));
   gspSelfPlayer = -1;
+  setGspLocalClaimKey('');
   gspManualOrder = normalizeGspManualOrder();
   gspAutoOrder = null;
   gspAutoResults = [];
@@ -8149,7 +8160,7 @@ async function openGameStartSetupPreview(){
 async function closeGameStartSetupPreview(sync=true){
   const overlay = document.getElementById('gameStartOverlay');
   if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); }
-  if (sync) await publishGameStartLobby({ show:false, claims:{}, closedAt: Date.now() });
+  if (sync) { setGspLocalClaimKey(''); await publishGameStartLobby({ show:false, claims:{}, closedAt: Date.now() }); }
 }
 function setGameStartPreviewCount(n){
   syncGspNamesFromInputs();
@@ -8199,19 +8210,43 @@ function normalizeGspManualOrder(){
 async function selectGameStartSelfColor(i){
   i = Number(i);
   if (i < 0 || i >= gspCount) return;
+
+  // v196: 色変更時に、前にこのブラウザが確保していた色を必ず解放する。
+  // これにより「赤→青→緑→黄」と切り替えた時に、他ブラウザ側で古い色が使用中のまま残る問題を防ぐ。
   const claims = Object.assign({}, getGspClaims());
   const my = getGspClientId();
   const key = GSP_COLORS[i].key;
-  if (claims[key] && claims[key] !== my) return;
+  const previousKey = getGspLocalClaimKey();
 
-  const wasActive = claims[key] === my;
-  GSP_COLORS.forEach(c => { if (claims[c.key] === my) delete claims[c.key]; });
+  // 他ブラウザが使用中の色は選べない。
+  if (claims[key] && claims[key] !== my && key !== previousKey) return;
 
-  // 同じ色をもう一度押した場合は選択解除。
-  if (!wasActive) claims[key] = my;
+  const wasActive = claims[key] === my || previousKey === key;
+
+  // 自分のクライアントIDで確保している色を全部解放。
+  GSP_COLORS.forEach(c => {
+    if (claims[c.key] === my) delete claims[c.key];
+  });
+
+  // このブラウザが直前に選んだ色も解放。
+  // 通信タイミング等で claims のID判定だけでは残るケースへの保険。
+  if (previousKey && GSP_COLORS.some(c => c.key === previousKey)) {
+    if (!claims[previousKey] || claims[previousKey] === my || previousKey !== key) {
+      delete claims[previousKey];
+    }
+  }
+
+  // 同じ色をもう一度押した場合は選択解除。違う色なら新しい色を確保。
+  if (wasActive) {
+    setGspLocalClaimKey('');
+    gspSelfPlayer = -1;
+  } else {
+    claims[key] = my;
+    setGspLocalClaimKey(key);
+    gspSelfPlayer = i;
+  }
 
   gspLobby.claims = claims;
-  gspSelfPlayer = wasActive ? -1 : i;
   renderGameStartSetupPreview(false);
   await publishGameStartLobby({ claims, names:gspNames.slice() });
 }
