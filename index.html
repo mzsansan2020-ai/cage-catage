@@ -2485,17 +2485,22 @@ body {
 .gameStartHeader h3 { margin:0; font-size: 24px; letter-spacing:.02em; }
 .gameStartClose {
   position: absolute;
-  top: 14px;
-  right: 16px;
+  top: 16px;
+  right: 20px;
   z-index: 2;
   border: 0;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.20);
   color:white;
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 900;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor:pointer;
 }
 .gameStartBody { padding: 18px 22px 22px; }
@@ -2541,6 +2546,7 @@ body {
 .gspPrimary { background:#0a8f4c; color:#fff; border-color:#08783f !important; }
 .dicePreviewPanel { display:flex; flex-direction:column; gap:12px; align-items:stretch; }
 .diceStage {
+  position: relative;
   min-height: 145px;
   border-radius: 14px;
   background: radial-gradient(circle at center, #fff, #f3f6fb);
@@ -2548,38 +2554,71 @@ body {
   display:flex;
   align-items:center;
   justify-content:center;
-  gap: 18px;
+  gap: 28px;
   padding: 16px;
+  overflow: hidden;
+}
+.diceStage::after {
+  content:"";
+  position:absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 28px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.08);
+  filter: blur(3px);
+  pointer-events:none;
 }
 .diceBox {
-  width: 70px;
-  height: 70px;
-  border-radius: 14px;
-  background:#fff;
-  border:2px solid #d8dde6;
-  box-shadow: 0 6px 16px rgba(0,0,0,.16);
+  position: relative;
+  z-index: 1;
+  width: 68px;
+  height: 68px;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #ffffff 0%, #f6f7fb 72%, #e9edf5 100%);
+  border:1px solid #d5dce8;
+  box-shadow: 0 10px 20px rgba(0,0,0,.18), inset -5px -5px 9px rgba(0,0,0,.08), inset 5px 5px 10px rgba(255,255,255,.95);
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size: 40px;
-  font-weight: 900;
-  line-height:1;
   user-select:none;
+  transform-origin:center center;
 }
-.diceBox.rolling { animation: diceRollJump .22s cubic-bezier(.2,.8,.2,1) infinite; }
-.diceBox.rolling:nth-child(2) { animation-delay: .07s; }
-.diceBox.settle { animation: diceSettle .28s ease-out 1; }
-@keyframes diceRollJump {
-  0% { transform: translateX(-8px) translateY(0) rotate(-22deg) scale(1); }
-  25% { transform: translateX(6px) translateY(-16px) rotate(28deg) scale(1.08); }
-  50% { transform: translateX(12px) translateY(0) rotate(72deg) scale(.98); }
-  75% { transform: translateX(-4px) translateY(-10px) rotate(118deg) scale(1.05); }
-  100% { transform: translateX(-8px) translateY(0) rotate(158deg) scale(1); }
+.diceFace {
+  width: 42px;
+  height: 42px;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
 }
-@keyframes diceSettle {
-  0% { transform: translateY(-8px) rotate(12deg) scale(1.08); }
-  55% { transform: translateY(2px) rotate(-5deg) scale(.98); }
-  100% { transform: translateY(0) rotate(0) scale(1); }
+.dicePip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #111;
+  align-self:center;
+  justify-self:center;
+  opacity: 0;
+}
+.dicePip.on { opacity: 1; }
+.diceBox.rolling { animation: diceBoardRoll 1.05s cubic-bezier(.22,.7,.25,1) infinite; }
+.diceBox.rolling:nth-child(2) { animation-delay: .13s; }
+.diceBox.settle { animation: diceLandBounce .42s cubic-bezier(.18,.9,.25,1.2) 1; }
+@keyframes diceBoardRoll {
+  0%   { transform: translateX(-92px) translateY(16px) rotate(-45deg) scale(.92); }
+  18%  { transform: translateX(-54px) translateY(-22px) rotate(145deg) scale(1.08); }
+  36%  { transform: translateX(-14px) translateY(12px) rotate(320deg) scale(.98); }
+  55%  { transform: translateX(28px) translateY(-24px) rotate(515deg) scale(1.06); }
+  74%  { transform: translateX(66px) translateY(10px) rotate(700deg) scale(.96); }
+  100% { transform: translateX(94px) translateY(0) rotate(900deg) scale(1); }
+}
+@keyframes diceLandBounce {
+  0%   { transform: translateX(28px) translateY(-18px) rotate(36deg) scale(1.08); }
+  42%  { transform: translateX(8px) translateY(6px) rotate(-12deg) scale(.96); }
+  70%  { transform: translateX(-2px) translateY(-4px) rotate(5deg) scale(1.02); }
+  100% { transform: translateX(0) translateY(0) rotate(0) scale(1); }
 }
 .diceResultBig { text-align:center; font-size: 22px; font-weight: 900; color:#d01818; min-height: 28px; }
 .autoOrderList { border:1px solid #d8dde6; border-radius:12px; overflow:hidden; background:#fff; }
@@ -2602,6 +2641,171 @@ body {
 }
 .rollOrderButton:disabled { opacity:.55; cursor:not-allowed; }
 .gameStartNote { font-size:12px; color:#667085; text-align:center; margin-top:10px; }
+
+/* v181: 疑似物理ダイス（3D風キューブで盤面内だけで跳ね返る） */
+.boardDiceRollOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100020;
+  pointer-events: auto;
+  background: transparent;
+  perspective: 900px;
+}
+.boardRollDie {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 74px;
+  height: 74px;
+  transform-origin:center center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.boardDiceCube {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.boardDiceFace {
+  position:absolute;
+  inset:0;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #ffffff 0%, #f7f8fb 68%, #e6ebf4 100%);
+  border: 1px solid #d3dbea;
+  box-shadow: inset -6px -6px 10px rgba(0,0,0,.09), inset 6px 6px 12px rgba(255,255,255,.96);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  backface-visibility: hidden;
+}
+.boardDiceFace::after {
+  content:"";
+  position:absolute;
+  inset: 8px 10px auto auto;
+  width: 18px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.85);
+  filter: blur(.5px);
+  transform: rotate(-28deg);
+}
+.boardDiceFace.front  { transform: rotateY(0deg) translateZ(37px); }
+.boardDiceFace.right  { transform: rotateY(90deg) translateZ(37px); }
+.boardDiceFace.back   { transform: rotateY(180deg) translateZ(37px); }
+.boardDiceFace.left   { transform: rotateY(-90deg) translateZ(37px); }
+.boardDiceFace.top    { transform: rotateX(90deg) translateZ(37px); }
+.boardDiceFace.bottom { transform: rotateX(-90deg) translateZ(37px); }
+.boardRollDie .diceFace { width: 45px; height: 45px; }
+.boardRollDie .dicePip { box-shadow: inset 0 1px 1px rgba(255,255,255,.15); }
+.boardRollShadow {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 86px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.20);
+  filter: blur(5px);
+  will-change: transform, opacity;
+}
+
+/* v182: ダイス演出デバッグ用（確認用。ゲーム処理には未接続） */
+.diceDebugPanel {
+  margin-top: 10px;
+  border: 1px dashed #b8c7dc;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 8px 10px;
+  font-size: 12px;
+  color:#2f3b4c;
+}
+.diceDebugPanel summary {
+  cursor:pointer;
+  font-weight:800;
+  color:#24507a;
+}
+.diceDebugRow {
+  display:grid;
+  grid-template-columns: 92px 1fr 46px;
+  gap: 8px;
+  align-items:center;
+  margin-top: 8px;
+}
+.diceDebugRow input[type=range] { width: 100%; }
+.diceDebugValue { text-align:right; font-weight:800; color:#0f5fae; }
+
+
+/* v186: ダイス調整プレビュー表示 */
+.diceDebugToggleRow {
+  display:grid;
+  grid-template-columns: 92px 1fr;
+  gap:8px;
+  align-items:center;
+  margin-top:8px;
+}
+.diceDebugToggleButtons { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.diceDebugToggleButtons button {
+  border:1px solid #c8d7ee;
+  border-radius:8px;
+  background:#fff;
+  font-weight:800;
+  padding:6px 4px;
+  cursor:pointer;
+}
+.diceDebugToggleButtons button.active {
+  background:#1f6fdb;
+  color:#fff;
+  border-color:#1f6fdb;
+}
+.diceDebugMiniBoard {
+  position:relative;
+  height:96px;
+  margin-top:10px;
+  border:1px solid #c8d7ee;
+  border-radius:10px;
+  overflow:hidden;
+  background:linear-gradient(180deg,#eaf5ff,#d7ecff);
+}
+.diceDebugMiniBoard::before {
+  content:"盤面範囲";
+  position:absolute;
+  left:8px;
+  top:6px;
+  font-size:11px;
+  font-weight:800;
+  color:rgba(31,80,125,.70);
+}
+.diceDebugFloorBand {
+  position:absolute;
+  left:10px;
+  right:10px;
+  border:2px solid rgba(220,38,38,.85);
+  background:rgba(220,38,38,.12);
+  box-shadow:0 0 0 1px rgba(220,38,38,.12);
+}
+.diceDebugFloorLabel {
+  position:absolute;
+  right:12px;
+  transform:translateY(-50%);
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(220,38,38,.25);
+  border-radius:999px;
+  padding:2px 7px;
+  font-size:11px;
+  font-weight:900;
+  color:#b91c1c;
+}
+.diceDebugOriginMark {
+  position:absolute;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#1f6fdb;
+  box-shadow:0 0 0 4px rgba(31,111,219,.18);
+}
+
 @media (max-width: 900px) { .gameStartGrid { grid-template-columns:1fr; } }
 </style>
 
@@ -2934,6 +3138,20 @@ const resourceName = {
 const defaultPlayerNames = ["赤", "青", "緑", "黄"];
 let playerNames = ["赤", "青", "緑", "黄"];
 let activePlayerCount = 4;
+let gameTurnOrder = [0, 1, 2, 3];
+
+function normalizeGameTurnOrder(order) {
+  const active = Array.from({ length: activePlayerCount }, (_, i) => i);
+  const src = Array.isArray(order) ? order.map(Number) : [];
+  const kept = src.filter(i => active.includes(i));
+  active.forEach(i => { if (!kept.includes(i)) kept.push(i); });
+  return kept;
+}
+
+function activePlayerTurnOrder() {
+  gameTurnOrder = normalizeGameTurnOrder(gameTurnOrder);
+  return gameTurnOrder.slice();
+}
 let selfPlayerIndex = Number(localStorage.getItem("catanSelfPlayerIndex") || "0");
 const playerColors = ["#d93025", "#1a73e8", "#2eae3f", "#f4c20d"];
 const playerStroke = ["#7a120c", "#0b3d91", "#16651f", "#9b7a00"];
@@ -3034,13 +3252,13 @@ function refreshPlayerSelectOptions() {
   const select = document.getElementById("playerSelect");
   if (select) {
     const current = Math.min(Number(select.value || 0), activePlayerCount - 1);
-    select.innerHTML = activePlayerIndices().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
+    select.innerHTML = activePlayerTurnOrder().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
     select.value = String(current);
   }
   const selfSelect = document.getElementById("selfPlayerSelect");
   if (selfSelect) {
     const self = getSelfPlayer();
-    selfSelect.innerHTML = activePlayerIndices().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
+    selfSelect.innerHTML = activePlayerTurnOrder().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
     selfSelect.value = String(self);
   }
 }
@@ -3060,6 +3278,7 @@ function applyPlayerSettingsFromUI() {
     if (input) playerNames[i] = input.value.trim() || defaultPlayerNames[i];
     else if (!playerNames[i]) playerNames[i] = defaultPlayerNames[i];
   }
+  gameTurnOrder = normalizeGameTurnOrder(gameTurnOrder);
   if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
   localStorage.setItem("catanSelfPlayerIndex", String(selfPlayerIndex));
   refreshPlayerSetupUI();
@@ -3087,6 +3306,7 @@ function applyPlayerSettingsData(data) {
   if (Array.isArray(data.playerNames)) {
     for (let i = 0; i < 4; i++) playerNames[i] = data.playerNames[i] || defaultPlayerNames[i];
   }
+  gameTurnOrder = normalizeGameTurnOrder(data.gameTurnOrder || gameTurnOrder);
   if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
   refreshPlayerSetupUI();
 }
@@ -3167,6 +3387,7 @@ function undoOnce() {
   sevenDiscardQueue = clone(lastState.sevenDiscardQueue || []);
   sevenDiscardIndex = lastState.sevenDiscardIndex || 0;
   currentPhase = lastState.currentPhase || currentPhase || "dice";
+  gameTurnOrder = normalizeGameTurnOrder(lastState.gameTurnOrder || gameTurnOrder);
   hasRolledDice = !!lastState.hasRolledDice;
   yearOfPlentySelectionActive = !!lastState.yearOfPlentySelectionActive;
   monopolySelectionActive = !!lastState.monopolySelectionActive;
@@ -4395,7 +4616,7 @@ function markSetupRoadDoneSafe() {
 }
 
 function makeSetupTurnOrderOnly() {
-  const first = shuffle(activePlayerIndices());
+  const first = activePlayerTurnOrder();
   const second = [...first].reverse();
   return [...first, ...second];
 }
@@ -4569,7 +4790,9 @@ function nextTurn() {
   const current = Number(select.value);
   // 発展カードは購入したターン中は使えない。ターン終了時に使用可能へ移す。
   makeNewDevCardsUsable(current);
-  const next = (current + 1) % activePlayerCount;
+  const order = activePlayerTurnOrder();
+  const pos = order.indexOf(current);
+  const next = order[(pos >= 0 ? pos + 1 : 0) % order.length];
   select.value = String(next);
   yearOfPlentySelectionActive = false;
   monopolySelectionActive = false;
@@ -5033,7 +5256,7 @@ function isRobberProcessActive() {
 }
 
 
-function rollDice() {
+async function rollDice() {
   if (typeof getSelfPlayer === "function" && getSelfPlayer() !== getCurrentPlayer()) {
     log("ダイスを振れるのはターンプレイヤーだけです。");
     updateDiceButtonState();
@@ -5060,12 +5283,20 @@ function rollDice() {
   const d1 = Math.floor(Math.random() * 6) + 1;
   const d2 = Math.floor(Math.random() * 6) + 1;
   const total = d1 + d2;
+  const diceResultEl = document.getElementById("diceResult");
+  if (diceResultEl) diceResultEl.textContent = getPlayerName(getCurrentPlayer()) + " がダイスを振っています...";
+  try {
+    await playBoardDiceRollAnimation(d1, d2);
+  } catch (e) {
+    console.warn("dice animation skipped", e);
+  }
+
   lastDiceTotal = total;
   lastDiceText = String(total);
   updateDiceTileHighlights(total);
   document.getElementById("diceResult").innerHTML = "<b>" + d1 + " + " + d2 + " = " + total + "</b>";
 
-  // 前回の出目表示を消して、最新の合計値だけを即時表示
+  // 演出完了後に最新の合計値を確定表示
   redraw();
 
   if (total === 7) {
@@ -6465,7 +6696,7 @@ function updatePlayerCardsUI() {
 
   container.innerHTML = "";
 
-  activePlayerIndices().forEach((player) => {
+  activePlayerTurnOrder().forEach((player) => {
     const r = resources[player];
     const remain = getRemainingPieces(player);
 
@@ -7016,10 +7247,11 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v170-dice-once-per-turn",
+    version: "v192-game-start-order-dice",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
+    gameTurnOrder: clone(gameTurnOrder || []),
     currentPlayer: getCurrentPlayer(),
     deck: clone(deck),
     numbers: clone(numbers),
@@ -7090,6 +7322,7 @@ function applyBoardSaveData(data) {
   lastDiceTotal = data.lastDiceTotal ?? null;
   lastDiceText = data.lastDiceText || '';
   highlightedDiceTiles = clone(data.highlightedDiceTiles || []);
+  gameTurnOrder = normalizeGameTurnOrder(data.gameTurnOrder || gameTurnOrder);
   setupTurnActive = !!data.setupTurnActive;
   setupTurnOrder = clone(data.setupTurnOrder || []);
   setupTurnIndex = data.setupTurnIndex || 0;
@@ -7688,13 +7921,13 @@ function renderRobberQueueWaiting(currentPlayer) {
             <button class="gspCancel" onclick="closeGameStartSetupPreview()">キャンセル</button>
             <button class="gspPrimary" onclick="previewGameStartConfirm()">この内容で開始</button>
           </div>
-          <div class="gameStartNote">※ v172はUI確認用です。実際のゲーム開始処理にはまだ接続していません。</div>
+          <div class="gameStartNote">※ この内容でゲーム開始すると、人数・名前・ターン順を反映します。</div>
         </div>
         <div class="gameStartPanel dicePreviewPanel">
           <h4>自動で順番を決める</h4>
           <div class="diceStage">
-            <div id="gspDice1" class="diceBox">⚂</div>
-            <div id="gspDice2" class="diceBox">⚄</div>
+            <div id="gspDice1" class="diceBox"></div>
+            <div id="gspDice2" class="diceBox"></div>
           </div>
           <div id="gspDiceTotal" class="diceResultBig">ダイス演出プレビュー</div>
           <button id="gspRollBtn" class="rollOrderButton" onclick="rollGameStartOrderPreview()">ダイスを振って順番を決める</button>
@@ -7706,7 +7939,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v173: ゲームスタートUI・ダイス演出プレビュー調整。既存のゲーム進行処理には未接続。 */
+/* v192: ゲームスタートUIを実処理に接続。ダイス演出はv191確認設定を固定し、デバッグUIを削除。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -7719,6 +7952,7 @@ let gspRolling = false;
 let gspManualOrder = [0,1,2,3];
 let gspNames = ['赤','青','緑','黄'];
 let gspDragIndex = null;
+let gspAutoOrder = null;
 
 function openGameStartSetupPreview(){
   try {
@@ -7727,6 +7961,7 @@ function openGameStartSetupPreview(){
   } catch(e) {}
   gspNames = GSP_COLORS.map((_, i) => getGspNameFromMain(i));
   gspManualOrder = normalizeGspManualOrder();
+  gspAutoOrder = null;
   renderGameStartSetupPreview();
   const overlay = document.getElementById('gameStartOverlay');
   if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
@@ -7739,15 +7974,17 @@ function setGameStartPreviewCount(n){
   syncGspNamesFromInputs();
   gspCount = Math.max(2, Math.min(4, Number(n)||2));
   gspManualOrder = normalizeGspManualOrder();
+  gspAutoOrder = null;
   renderGameStartSetupPreview();
 }
 function setGameStartOrderMode(mode){
   syncGspNamesFromInputs();
   gspOrderMode = mode === 'auto' ? 'auto' : 'manual';
+  if (gspOrderMode !== 'auto') gspAutoOrder = null;
   renderGameStartSetupPreview(false);
 }
 function getGspNameFromMain(i){
-  const ids = ['playerName0','playerName1','playerName2','playerName3'];
+  const ids = ['playerNameInput0','playerNameInput1','playerNameInput2','playerNameInput3'];
   const el = document.getElementById(ids[i]);
   return (el && el.value ? el.value : GSP_COLORS[i].label);
 }
@@ -7777,6 +8014,8 @@ function renderGameStartSetupPreview(resetList=true){
   if (panelTitle) panelTitle.textContent = gspOrderMode === 'auto' ? '自動で順番を決める' : '手動で順番を決める';
   const rollBtn = document.getElementById('gspRollBtn');
   if (rollBtn) rollBtn.style.display = gspOrderMode === 'auto' ? '' : 'none';
+  setDiceFace(document.getElementById('gspDice1'), 3);
+  setDiceFace(document.getElementById('gspDice2'), 5);
   const rightHint = document.querySelector('.dicePreviewPanel .gspHint');
   if (rightHint) rightHint.textContent = gspOrderMode === 'auto' ? '自動で決める場合は、演出後に各プレイヤーの出目を表示し、大きい順に並べる想定です。' : '行をつかんで上下にドラッグすると、手動で順番を入れ替えできます。';
   const rows=document.getElementById('gspPlayerRows');
@@ -7823,7 +8062,20 @@ function renderGspManualOrderList(){
     });
   });
 }
-function diceFace(n){ return ['⚀','⚁','⚂','⚃','⚄','⚅'][Math.max(1,Math.min(6,n))-1]; }
+function diceFaceHtml(n){
+  const face = Math.max(1, Math.min(6, Number(n)||1));
+  const onByFace = {
+    1:[4],
+    2:[0,8],
+    3:[0,4,8],
+    4:[0,2,6,8],
+    5:[0,2,4,6,8],
+    6:[0,2,3,5,6,8]
+  };
+  const on = new Set(onByFace[face]);
+  return '<div class="diceFace">' + Array.from({length:9}, (_,i)=>`<span class="dicePip ${on.has(i)?'on':''}"></span>`).join('') + '</div>';
+}
+function setDiceFace(el, n){ if (el) el.innerHTML = diceFaceHtml(n); }
 function settleDice(d1, d2){
   [d1,d2].forEach(d => {
     if (!d) return;
@@ -7834,53 +8086,341 @@ function settleDice(d1, d2){
     setTimeout(() => d.classList.remove('settle'), 320);
   });
 }
-function rollGameStartOrderPreview(){
+function diceCubeHtml(){
+  const faces = [
+    ['front', 1],
+    ['right', 2],
+    ['top', 3],
+    ['bottom', 4],
+    ['left', 5],
+    ['back', 6]
+  ];
+  return '<div class="boardDiceCube">' + faces.map(([cls,num]) => `<div class="boardDiceFace ${cls}">${diceFaceHtml(num)}</div>`).join('') + '</div>';
+}
+function createBoardRollDie(){
+  const d = document.createElement('div');
+  d.className = 'boardRollDie';
+  d.innerHTML = diceCubeHtml();
+  return d;
+}
+function finalCubeRotation(face, extraZ){
+  const z = extraZ || 0;
+  const map = {
+    1: `rotateX(0deg) rotateY(0deg) rotateZ(${z}deg)`,
+    2: `rotateX(0deg) rotateY(-90deg) rotateZ(${z}deg)`,
+    3: `rotateX(-90deg) rotateY(0deg) rotateZ(${z}deg)`,
+    4: `rotateX(90deg) rotateY(0deg) rotateZ(${z}deg)`,
+    5: `rotateX(0deg) rotateY(90deg) rotateZ(${z}deg)`,
+    6: `rotateX(0deg) rotateY(180deg) rotateZ(${z}deg)`
+  };
+  return map[Math.max(1, Math.min(6, Number(face)||1))];
+}
+const DICE_ANIMATION_SETTINGS = {
+  duration: 1500,
+  fall: 1.05,
+  bounce: 0.85,
+  floor: 0.50,
+  band: 0.38,
+  width: 0.62,
+  origin: 'center'
+};
+function setDiceDebugOrigin(mode){
+  DICE_ANIMATION_SETTINGS.origin = 'center';
+}
+function getDiceDebugSettings(){
+  return Object.assign({}, DICE_ANIMATION_SETTINGS);
+}
+function updateDiceDebugLabels(){
+  // v192: デバッグUIは削除。設定は DICE_ANIMATION_SETTINGS で固定。
+}
+
+function numericFinalCubeRotation(face){
+  const map = {
+    1: [0, 0],
+    2: [0, -90],
+    3: [-90, 0],
+    4: [90, 0],
+    5: [0, 90],
+    6: [0, 180]
+  };
+  return map[Math.max(1, Math.min(6, Number(face)||1))] || [0, 0];
+}
+function playBoardDiceRollAnimation(finalA, finalB){
+  return new Promise(resolve => {
+    updateDiceDebugLabels();
+    const st = getDiceDebugSettings();
+    const canvasEl = document.getElementById('board');
+    const rect = canvasEl ? canvasEl.getBoundingClientRect() : {left: window.innerWidth*.25, top: window.innerHeight*.18, width: window.innerWidth*.5, height: window.innerHeight*.62, right: window.innerWidth*.75, bottom: window.innerHeight*.80};
+    if (!rect.right) rect.right = rect.left + rect.width;
+    if (!rect.bottom) rect.bottom = rect.top + rect.height;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'boardDiceRollOverlay';
+    const dice1 = createBoardRollDie();
+    const dice2 = createBoardRollDie();
+    const cube1 = dice1.querySelector('.boardDiceCube');
+    const cube2 = dice2.querySelector('.boardDiceCube');
+    const shadow1 = document.createElement('div');
+    const shadow2 = document.createElement('div');
+    shadow1.className = 'boardRollShadow';
+    shadow2.className = 'boardRollShadow';
+    overlay.appendChild(shadow1); overlay.appendChild(shadow2); overlay.appendChild(dice1); overlay.appendChild(dice2);
+    document.body.appendChild(overlay);
+
+    const size = 74;
+    const rand = (min,max) => min + Math.random() * (max-min);
+    const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+    const smoothstep = t => t * t * (3 - 2 * t);
+
+    // v191: 回転はv190の自然減速を維持し、移動・壁反発だけ少し跳ね回る初期値に調整。
+    const playWidth = Math.max(size * 3.2, rect.width * st.width);
+    const playLeft = rect.left + (rect.width - playWidth) / 2;
+    const playRight = playLeft + playWidth;
+    const boundsLeft = playLeft + 18;
+    const boundsRight = playRight - size - 18;
+    const centerY = rect.top + rect.height * st.floor;
+    const playHeight = Math.max(size * 1.8, rect.height * st.band);
+    const boundsTop = clamp(centerY - playHeight / 2, rect.top + 12, rect.bottom - playHeight - 12);
+    const boundsBottom = clamp(boundsTop + playHeight - size, boundsTop + size, rect.bottom - size - 12);
+    const boundsCenterX = (boundsLeft + boundsRight) / 2;
+    const boundsCenterY = (boundsTop + boundsBottom) / 2;
+    const duration = Math.round(clamp(st.duration + rand(-260, 320), 1500, 2700));
+
+    function makeDieState(slot){
+      const offset = slot === 0 ? -42 : 42;
+      const startX = clamp(boundsCenterX + offset + rand(-18, 18), boundsLeft + 8, boundsRight - 8);
+      const startY = clamp(boundsCenterY + rand(-18, 18), boundsTop + 8, boundsBottom - 8);
+      // まず必ずどこかの壁に向かう。2個で方向を少しずらす。
+      const targetWall = Math.floor(rand(0, 4));
+      let tx = boundsCenterX, ty = boundsCenterY;
+      if (targetWall === 0) { tx = boundsLeft;  ty = rand(boundsTop, boundsBottom); }
+      if (targetWall === 1) { tx = boundsRight; ty = rand(boundsTop, boundsBottom); }
+      if (targetWall === 2) { tx = rand(boundsLeft, boundsRight); ty = boundsTop; }
+      if (targetWall === 3) { tx = rand(boundsLeft, boundsRight); ty = boundsBottom; }
+      tx += slot === 0 ? rand(-18, 6) : rand(-6, 18);
+      ty += rand(-18, 18);
+      const dx = tx - startX;
+      const dy = ty - startY;
+      const len = Math.hypot(dx, dy) || 1;
+      const speed = rand(.24, .34) * st.fall;
+      return {
+        x: startX,
+        y: startY,
+        vx: (dx / len) * speed,
+        vy: (dy / len) * speed,
+        bounces: 0,
+        firstBounceAt: null,
+        enteredBounds: true
+      };
+    }
+
+    const state1 = makeDieState(0);
+    const state2 = makeDieState(1);
+    const final1 = numericFinalCubeRotation(finalA);
+    const final2 = numericFinalCubeRotation(finalB);
+    function makeSpin(slot){
+      // v191: 最低回転量を保証しつつ、完全なX/Y/Z固定軸ではなく毎回少し斜めの回転軸にする。
+      const sign = () => Math.random() < .5 ? -1 : 1;
+      const base = 720 * rand(.85, 1.28);
+      return {
+        x: base * rand(.70, 1.12) * sign(),
+        y: base * rand(.58, 1.08) * sign(),
+        z: 360 * rand(.16, .42) * sign(),
+        ax: rand(-18, 18),
+        ay: rand(-18, 18),
+        az: rand(-10, 10),
+        slot
+      };
+    }
+    const spin1 = makeSpin(0);
+    const spin2 = makeSpin(1);
+    const finalZ1 = rand(-12, 12);
+    const finalZ2 = rand(-12, 12);
+    let lastTime = null;
+    const startTime = performance.now();
+
+    function markBounce(s, elapsed){
+      s.bounces++;
+      if (s.firstBounceAt == null) s.firstBounceAt = elapsed;
+    }
+
+    function stepPhysics(s, dt, elapsed){
+      const t = elapsed / duration;
+      // 常に減速。終盤ほど摩擦を強くして、再加速しない。
+      const late = t > .58 ? (t - .58) / .42 : 0;
+      const damping = Math.pow(.9972 - late * .0090, dt / 16);
+      s.vx *= damping;
+      s.vy *= damping;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+
+      if (s.x < boundsLeft) {
+        s.x = boundsLeft;
+        s.vx = Math.abs(s.vx) * st.bounce;
+        s.vy *= .96;
+        markBounce(s, elapsed);
+      } else if (s.x > boundsRight) {
+        s.x = boundsRight;
+        s.vx = -Math.abs(s.vx) * st.bounce;
+        s.vy *= .96;
+        markBounce(s, elapsed);
+      }
+      if (s.y < boundsTop) {
+        s.y = boundsTop;
+        s.vy = Math.abs(s.vy) * st.bounce;
+        s.vx *= .96;
+        markBounce(s, elapsed);
+      } else if (s.y > boundsBottom) {
+        s.y = boundsBottom;
+        s.vy = -Math.abs(s.vy) * st.bounce;
+        s.vx *= .96;
+        markBounce(s, elapsed);
+      }
+
+      if (t > .70) {
+        const k = (t - .70) / .30;
+        const stop = Math.pow(1 - k * .070, dt / 16);
+        s.vx *= stop;
+        s.vy *= stop;
+      }
+    }
+
+    function renderDie(die, cube, shadow, s, face, finalRot, spin, finalZ, elapsed){
+      const t = clamp(elapsed / duration, 0, 1);
+      const speed = Math.hypot(s.vx, s.vy);
+      // v191: 後半で回転量を足さない。最初に決めた総回転量を、最後まで単純に減速しながら消化する。
+      const naturalRemaining = Math.pow(1 - t, 1.35);
+      const microSettle = smoothstep(clamp((t - .975) / .025, 0, 1));
+      const spinFactor = naturalRemaining * (1 - microSettle);
+      const wobble = Math.sin(t * Math.PI * 2.1 + spin.ax * .08) * 0.85 * spinFactor;
+      die.style.transform = `translate(${s.x}px, ${s.y}px) scale(${1 + speed * .025})`;
+      const axisTiltX = spin.ax * spinFactor;
+      const axisTiltY = spin.ay * spinFactor;
+      const axisTiltZ = spin.az * spinFactor;
+      const rx = finalRot[0] + spin.x * spinFactor + wobble + axisTiltX;
+      const ry = finalRot[1] + spin.y * spinFactor - wobble * .55 + axisTiltY;
+      const rz = finalZ + spin.z * spinFactor + axisTiltZ;
+      cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
+
+      const shadowScale = clamp(1.00 - ((boundsBottom - s.y) / Math.max(140, rect.height)) * .38, .48, 1.06);
+      shadow.style.transform = `translate(${s.x - 4}px, ${s.y + size + 9}px) scale(${shadowScale})`;
+      shadow.style.opacity = String(clamp(.06 + shadowScale * .16, .07, .22));
+      if (t >= 1) cube.style.transform = finalCubeRotation(face, finalZ);
+    }
+
+    function frame(now){
+      if (lastTime == null) lastTime = now;
+      const elapsed = Math.min(now - startTime, duration);
+      const dt = Math.min(34, now - lastTime || 16);
+      lastTime = now;
+
+      stepPhysics(state1, dt, elapsed);
+      stepPhysics(state2, dt, elapsed);
+
+      const dx = state2.x - state1.x;
+      const dy = state2.y - state1.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const minDist = 98;
+      if (dist < minDist && elapsed < duration * .72) {
+        const push = (minDist - dist) * .0035;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        state1.vx -= nx * push; state1.vy -= ny * push;
+        state2.vx += nx * push; state2.vy += ny * push;
+      }
+
+      renderDie(dice1, cube1, shadow1, state1, finalA, final1, spin1, finalZ1, elapsed);
+      renderDie(dice2, cube2, shadow2, state2, finalB, final2, spin2, finalZ2, elapsed);
+
+      if (elapsed < duration) {
+        requestAnimationFrame(frame);
+      } else {
+        cube1.style.transform = finalCubeRotation(finalA, finalZ1);
+        cube2.style.transform = finalCubeRotation(finalB, finalZ2);
+        setDiceFace(document.getElementById('gspDice1'), finalA);
+        setDiceFace(document.getElementById('gspDice2'), finalB);
+        setTimeout(() => {
+          overlay.remove();
+          resolve();
+        }, 520);
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+async function rollGameStartOrderPreview(){
   if (gspRolling) return;
   syncGspNamesFromInputs();
   gspRolling = true;
+  gspAutoOrder = null;
   gspOrderMode = 'auto';
   renderGameStartSetupPreview(false);
-  const d1=document.getElementById('gspDice1'), d2=document.getElementById('gspDice2'), total=document.getElementById('gspDiceTotal'), btn=document.getElementById('gspRollBtn');
+  const total=document.getElementById('gspDiceTotal'), btn=document.getElementById('gspRollBtn');
   if(btn) btn.disabled=true;
-  if(d1) d1.classList.add('rolling'); if(d2) d2.classList.add('rolling');
-  const results=[]; let idx=0;
-  const rollOne=()=>{
-    if (idx >= gspCount) {
-      settleDice(d1,d2);
-      results.sort((a,b)=> b.total-a.total);
-      const list=document.getElementById('gspOrderList');
-      if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
-      if(total) total.textContent='順番が決まりました';
-      if(btn) btn.disabled=false;
-      gspRolling=false;
-      return;
-    }
+  const results=[];
+  for (let idx=0; idx<gspCount; idx++) {
     const playerName = getGspName(idx);
     if(total) total.textContent = `${playerName} がダイスを振っています...`;
-    let ticks=0;
-    const timer=setInterval(()=>{
-      const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
-      if(d1) d1.textContent=diceFace(a); if(d2) d2.textContent=diceFace(b);
-      ticks++;
-      if(ticks>=14){
-        clearInterval(timer);
-        const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
-        if(d1) d1.textContent=diceFace(a); if(d2) d2.textContent=diceFace(b);
-        settleDice(d1,d2);
-        results.push({ name: playerName, color:GSP_COLORS[idx].key, d1:a, d2:b, total:a+b });
-        const list=document.getElementById('gspOrderList');
-        if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
-        idx++;
-        setTimeout(rollOne, 360);
-      }
-    }, 90);
-  };
-  rollOne();
+    const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
+    await playBoardDiceRollAnimation(a,b);
+    results.push({ playerIndex: idx, name: playerName, color:GSP_COLORS[idx].key, d1:a, d2:b, total:a+b });
+    const list=document.getElementById('gspOrderList');
+    if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+    await new Promise(r => setTimeout(r, 220));
+  }
+  results.sort((a,b)=> (b.total-a.total) || (a.playerIndex-b.playerIndex));
+  gspAutoOrder = results.map(r => r.playerIndex);
+  const list=document.getElementById('gspOrderList');
+  if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+  if(total) total.textContent='順番が決まりました';
+  if(btn) btn.disabled=false;
+  gspRolling=false;
 }
 function previewGameStartConfirm(){
+  if (gspRolling) return;
   syncGspNamesFromInputs();
-  const order = gspOrderMode === 'manual' ? normalizeGspManualOrder().map(i => getGspName(i)).join(' → ') : '自動決定した順番';
-  alert('v173はUI確認用です。確認中の順番：' + order + '\n次の版で実際の初期設定・順番決定に接続します。');
+  if (gspOrderMode === 'auto' && (!Array.isArray(gspAutoOrder) || gspAutoOrder.length !== gspCount)) {
+    alert('自動で決める場合は、先に「ダイスを振って順番を決める」を押してください。');
+    return;
+  }
+
+  activePlayerCount = Math.max(2, Math.min(4, Number(gspCount) || 2));
+  for (let i = 0; i < 4; i++) {
+    playerNames[i] = (gspNames[i] && String(gspNames[i]).trim()) ? String(gspNames[i]).trim() : defaultPlayerNames[i];
+  }
+  gameTurnOrder = normalizeGameTurnOrder(gspOrderMode === 'auto' ? gspAutoOrder : gspManualOrder);
+
+  const countSelect = document.getElementById('playerCountSelect');
+  if (countSelect) countSelect.value = String(activePlayerCount);
+  for (let i = 0; i < 4; i++) {
+    const mainInput = document.getElementById('playerNameInput' + i);
+    if (mainInput) mainInput.value = playerNames[i];
+  }
+
+  if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
+  const playerSelect = document.getElementById('playerSelect');
+  if (playerSelect) playerSelect.value = String(gameTurnOrder[0]);
+  currentPhase = 'dice';
+  hasRolledDice = false;
+  lastDiceTotal = null;
+  lastDiceText = '';
+  const diceResult = document.getElementById('diceResult');
+  if (diceResult) diceResult.textContent = 'まだ振っていません';
+
+  refreshPlayerSetupUI();
+  if (playerSelect) playerSelect.value = String(gameTurnOrder[0]);
+  updateTurnDisplay();
+  refreshScoreAndResources();
+  updateTradeUI();
+  updatePortTradeUI(false);
+  updateDevCardUI();
+  updateDiceButtonState();
+  redraw();
+  closeGameStartSetupPreview();
+  log('ゲーム開始設定を反映しました。順番：' + gameTurnOrder.map(p => getPlayerName(p)).join(' → '));
+  scheduleCloudAutoSave();
 }
 </script>
 
