@@ -2187,6 +2187,13 @@ body {
   overflow:hidden;
 }
 .robberFakeSlider > span { display:block; height:100%; width:0%; background:var(--robber-color, #d92727); }
+.robberResourceSlider {
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--robber-color, #d92727);
+  cursor: pointer;
+}
+.robberResourceSlider:disabled { opacity: .45; cursor: not-allowed; }
 .robberProgressArea {
   border-top:0;
   padding-top:3px;
@@ -2455,7 +2462,6 @@ body {
               <button onclick="applyRoomFromUI()">ルームを反映</button>
               <div id="currentRoomDisplay" style="font-size:12px;margin-top:8px;color:#555;">現在のルーム：1</div>
               <div id="roomPresenceDisplay" style="font-size:14px;margin-top:8px;color:#111;font-weight:700;border-top:1px solid #ddd;padding-top:6px;">接続人数：確認中...</div>
-              <button class="robberPreviewButton" onclick="showRobberUiPreview(false)">盗賊UIプレビュー</button>
             </div>
           </div>
         </details>
@@ -6989,6 +6995,19 @@ function changeRobberPreviewCount(type, delta) {
   robberPreviewSelectedCounts[type] = next;
   updateRobberPreviewUi();
 }
+
+function setRobberPreviewCount(type, value) {
+  if (!(type in robberPreviewSelectedCounts)) return;
+  if (robberModalMode === 'actual' && sevenDiscardActive) {
+    const player = sevenDiscardQueue[sevenDiscardIndex];
+    if (typeof getSelfPlayer === 'function' && getSelfPlayer() !== player) return;
+  }
+  const holdings = getRobberCurrentHoldings();
+  const max = holdings[type] || 0;
+  const next = Math.max(0, Math.min(max, Number(value) || 0));
+  robberPreviewSelectedCounts[type] = next;
+  updateRobberPreviewUi();
+}
 function getRobberActualSelection() {
   if (robberModalMode !== 'actual') return null;
   return {
@@ -7028,12 +7047,15 @@ function updateRobberPreviewUi() {
   types.forEach(type => {
     const countEl = document.getElementById('robberPreviewCount_' + type);
     const ownEl = document.getElementById('robberPreviewOwn_' + type);
-    const barEl = document.getElementById('robberPreviewBar_' + type);
+    const sliderEl = document.getElementById('robberPreviewSlider_' + type);
     if (countEl) countEl.textContent = robberPreviewSelectedCounts[type];
     if (ownEl) ownEl.textContent = holdings[type] || 0;
-    if (barEl) {
-      const max = holdings[type] || 1;
-      barEl.style.width = Math.round((robberPreviewSelectedCounts[type] / max) * 100) + '%';
+    if (sliderEl) {
+      const max = holdings[type] || 0;
+      sliderEl.max = String(max);
+      sliderEl.value = String(Math.min(max, robberPreviewSelectedCounts[type] || 0));
+      const activePlayer = sevenDiscardActive ? sevenDiscardQueue[sevenDiscardIndex] : null;
+      sliderEl.disabled = robberModalMode === 'actual' && typeof getSelfPlayer === 'function' && getSelfPlayer() !== activePlayer;
     }
   });
 }
@@ -7260,11 +7282,11 @@ function renderRobberQueueWaiting(currentPlayer) {
             <span>捨てる枚数：<b id="robberPreviewNeed">12</b>枚</span>
           </div>
           <div class="robberResourceGrid">
-            <div class="robberResourceCard forest" data-type="forest"><div class="robberResourceTitle">木</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌲</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_forest">5</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('forest',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_forest">0</span><button onclick="changeRobberPreviewCount('forest',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_forest"></span></div></div></div>
-            <div class="robberResourceCard wheat" data-type="wheat"><div class="robberResourceTitle">麦</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌾</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_wheat">4</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('wheat',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_wheat">0</span><button onclick="changeRobberPreviewCount('wheat',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_wheat"></span></div></div></div>
-            <div class="robberResourceCard ore" data-type="ore"><div class="robberResourceTitle">鉄</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🪨</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_ore">3</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('ore',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_ore">0</span><button onclick="changeRobberPreviewCount('ore',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_ore"></span></div></div></div>
-            <div class="robberResourceCard brick" data-type="brick"><div class="robberResourceTitle">レンガ</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🧱</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_brick">6</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('brick',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_brick">0</span><button onclick="changeRobberPreviewCount('brick',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_brick"></span></div></div></div>
-            <div class="robberResourceCard sheep" data-type="sheep"><div class="robberResourceTitle">羊</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🐑</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_sheep">7</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('sheep',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_sheep">0</span><button onclick="changeRobberPreviewCount('sheep',1)">＋</button></div><div class="robberFakeSlider"><span id="robberPreviewBar_sheep"></span></div></div></div>
+            <div class="robberResourceCard forest" data-type="forest"><div class="robberResourceTitle">木</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌲</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_forest">5</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('forest',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_forest">0</span><button onclick="changeRobberPreviewCount('forest',1)">＋</button></div><input class="robberResourceSlider" id="robberPreviewSlider_forest" type="range" min="0" max="5" value="0" oninput="setRobberPreviewCount('forest', this.value)"></div></div>
+            <div class="robberResourceCard wheat" data-type="wheat"><div class="robberResourceTitle">麦</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🌾</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_wheat">4</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('wheat',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_wheat">0</span><button onclick="changeRobberPreviewCount('wheat',1)">＋</button></div><input class="robberResourceSlider" id="robberPreviewSlider_wheat" type="range" min="0" max="4" value="0" oninput="setRobberPreviewCount('wheat', this.value)"></div></div>
+            <div class="robberResourceCard ore" data-type="ore"><div class="robberResourceTitle">鉄</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🪨</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_ore">3</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('ore',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_ore">0</span><button onclick="changeRobberPreviewCount('ore',1)">＋</button></div><input class="robberResourceSlider" id="robberPreviewSlider_ore" type="range" min="0" max="3" value="0" oninput="setRobberPreviewCount('ore', this.value)"></div></div>
+            <div class="robberResourceCard brick" data-type="brick"><div class="robberResourceTitle">レンガ</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🧱</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_brick">6</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('brick',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_brick">0</span><button onclick="changeRobberPreviewCount('brick',1)">＋</button></div><input class="robberResourceSlider" id="robberPreviewSlider_brick" type="range" min="0" max="6" value="0" oninput="setRobberPreviewCount('brick', this.value)"></div></div>
+            <div class="robberResourceCard sheep" data-type="sheep"><div class="robberResourceTitle">羊</div><div class="robberResourceInner"><div class="robberResourceSub">現在の枚数</div><div class="robberResourceIcon">🐑</div><div class="robberResourceOwnCount"><span id="robberPreviewOwn_sheep">7</span>枚</div><div class="robberCounterRow"><button onclick="changeRobberPreviewCount('sheep',-1)">−</button><span class="robberCountValue" id="robberPreviewCount_sheep">0</span><button onclick="changeRobberPreviewCount('sheep',1)">＋</button></div><input class="robberResourceSlider" id="robberPreviewSlider_sheep" type="range" min="0" max="7" value="0" oninput="setRobberPreviewCount('sheep', this.value)"></div></div>
           </div>
           <div class="robberProgressArea">
             <div class="robberProgressRow">
@@ -7290,7 +7312,7 @@ function renderRobberQueueWaiting(currentPlayer) {
             <span>→</span>
             <div class="robberQueuePlayer"><span class="robberQueueIcon gray"></span><span>盗賊の移動へ</span></div>
           </div>
-          <div style="margin-top:24px;"><button class="robberPreviewSwitchBtn" onclick="showRobberUiPreview(false)">処理中UIを見る</button> <button class="robberCancelBtn" onclick="hideRobberUiPreview()">閉じる</button></div>
+          <div style="margin-top:24px;"><button class="robberCancelBtn" onclick="hideRobberUiPreview()">閉じる</button></div>
         </div>
       </div>
     </div>
