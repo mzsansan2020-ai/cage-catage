@@ -2576,6 +2576,7 @@ function applyPlayerSettingsFromUI() {
   updateRobberTargetSelect(robberTileIndex, getCurrentPlayer());
   redraw();
   log("プレイヤー設定を反映しました。");
+  scheduleCloudAutoSave();
 }
 
 function setSelfPlayerFromUI() {
@@ -2635,6 +2636,7 @@ function saveUndoState() {
     roadBuildingRoadsLeft
   };
   undoAvailable = true;
+  scheduleCloudAutoSave();
 }
 
 function undoOnce() {
@@ -6360,7 +6362,7 @@ loadImages().then(generateBoard);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v148-player-settings",
+    version: "v151-realtime-sync",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6466,12 +6468,42 @@ function applyBoardSaveData(data) {
   redraw();
 }
 
+let cloudAutoSaveTimer = null;
+let applyingCloudUpdate = false;
+let cloudRealtimeReady = false;
+
+function scheduleCloudAutoSave() {
+  if (applyingCloudUpdate) return;
+  if (typeof window.firebaseSaveBoard !== "function") return;
+  clearTimeout(cloudAutoSaveTimer);
+  cloudAutoSaveTimer = setTimeout(async () => {
+    try {
+      await window.firebaseSaveBoard(getBoardSaveData());
+    } catch (error) {
+      console.error("Auto save failed", error);
+    }
+  }, 900);
+}
+
+window.applyRealtimeBoardData = function(data) {
+  if (!data) return;
+  applyingCloudUpdate = true;
+  try {
+    applyBoardSaveData(data);
+    if (cloudRealtimeReady) showToast("盤面を自動更新しました");
+    cloudRealtimeReady = true;
+  } finally {
+    applyingCloudUpdate = false;
+  }
+};
+
 async function saveBoardToCloud() {
   if (typeof window.firebaseSaveBoard !== "function") {
     alert("Firebase接続がまだ準備できていません。少し待ってからもう一度押してください。");
     return;
   }
   try {
+    clearTimeout(cloudAutoSaveTimer);
     await window.firebaseSaveBoard(getBoardSaveData());
     showToast("盤面を保存しました");
     log("盤面を保存しました。");
@@ -6505,7 +6537,7 @@ async function loadBoardFromCloud() {
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { initializeFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { initializeFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBB--iZRLLpMQA9s11ot1zobqQBYccq75k",
@@ -6526,14 +6558,32 @@ async function loadBoardFromCloud() {
 
   const boardRef = doc(db, "boards", "latest");
 
+  const clientIdKey = "catanFirebaseClientId";
+  let clientId = localStorage.getItem(clientIdKey);
+  if (!clientId) {
+    clientId = String(Date.now()) + "-" + Math.random().toString(36).slice(2);
+    localStorage.setItem(clientIdKey, clientId);
+  }
+
   window.firebaseSaveBoard = async function(data) {
-    await setDoc(boardRef, data, { merge: true });
+    await setDoc(boardRef, { ...data, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
   };
 
   window.firebaseLoadBoard = async function() {
     const snap = await getDoc(boardRef);
     return snap.exists() ? snap.data() : null;
   };
+
+  onSnapshot(boardRef, (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    if (!data || data.updatedByClientId === clientId) return;
+    if (typeof window.applyRealtimeBoardData === "function") {
+      window.applyRealtimeBoardData(data);
+    }
+  }, (error) => {
+    console.error("Realtime sync failed", error);
+  });
 
   console.log("Firebase connected");
 </script>
