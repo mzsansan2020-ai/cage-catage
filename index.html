@@ -2114,6 +2114,8 @@ body {
       <div class="leftRandomTop categoryGroup">
         <div class="categoryTitle">ランダム配置</div>
         <button class="primary" onclick="generateBoard()">ランダム配置</button>
+        <button onclick="saveBoardToCloud()">盤面保存</button>
+        <button onclick="loadBoardFromCloud()">盤面読込</button>
       </div>
 
       <div class="leftLogPanel">
@@ -6186,10 +6188,154 @@ loadImages().then(generateBoard);
   setTimeout(syncFixedPanelPositions, 50);
   setTimeout(syncFixedPanelPositions, 300);
 })();
+
+
+// ===== Firebase 盤面保存・読込 =====
+function getBoardSaveData() {
+  return {
+    version: "v145-board-save",
+    savedAt: new Date().toISOString(),
+    currentPlayer: getCurrentPlayer(),
+    deck: clone(deck),
+    numbers: clone(numbers),
+    pieces: clone(pieces),
+    roads: clone(roads),
+    resources: clone(resources),
+    robberTileIndex,
+    robberMode,
+    pendingRobberSteal,
+    pendingRobberPlayer,
+    winnerText,
+    longestRoadOwner,
+    largestArmyOwner,
+    devDeck: clone(devDeck),
+    devCards: clone(devCards),
+    devCardsNewThisTurn: clone(devCardsNewThisTurn),
+    knightUsedCounts: clone(knightUsedCounts),
+    ports: clone(ports),
+    lastDiceTotal,
+    lastDiceText,
+    highlightedDiceTiles: clone(highlightedDiceTiles || []),
+    setupTurnActive,
+    setupTurnOrder: clone(setupTurnOrder || []),
+    setupTurnIndex,
+    setupTurnRound,
+    sevenDiscardActive,
+    sevenDiscardQueue: clone(sevenDiscardQueue || []),
+    sevenDiscardIndex,
+    yearOfPlentySelectionActive,
+    monopolySelectionActive,
+    roadBuildingActive,
+    roadBuildingRoadsLeft,
+    diceResultHTML: document.getElementById("diceResult") ? document.getElementById("diceResult").innerHTML : "",
+    robberStatusHTML: document.getElementById("robberStatus") ? document.getElementById("robberStatus").innerHTML : "",
+    logHTML: document.getElementById("log") ? document.getElementById("log").innerHTML : ""
+  };
+}
+
+function applyBoardSaveData(data) {
+  if (!data || !Array.isArray(data.deck) || !Array.isArray(data.numbers)) {
+    alert("保存データを読み込めませんでした。");
+    return;
+  }
+
+  cells = getCells();
+  deck = clone(data.deck);
+  numbers = clone(data.numbers);
+  vertices = buildVertices();
+  edges = buildEdges();
+  pieces = clone(data.pieces || {});
+  roads = clone(data.roads || {});
+  resources = clone(data.resources || initialResources());
+  robberTileIndex = data.robberTileIndex;
+  robberMode = !!data.robberMode;
+  pendingRobberSteal = !!data.pendingRobberSteal;
+  pendingRobberPlayer = data.pendingRobberPlayer ?? null;
+  winnerText = data.winnerText || '';
+  longestRoadOwner = data.longestRoadOwner ?? null;
+  largestArmyOwner = data.largestArmyOwner ?? null;
+  devDeck = clone(data.devDeck || makeDevDeck());
+  devCards = clone(data.devCards || initialDevCards());
+  devCardsNewThisTurn = clone(data.devCardsNewThisTurn || initialDevCards());
+  knightUsedCounts = clone(data.knightUsedCounts || initialKnightUsedCounts());
+  ports = clone(data.ports || []);
+  lastDiceTotal = data.lastDiceTotal ?? null;
+  lastDiceText = data.lastDiceText || '';
+  highlightedDiceTiles = clone(data.highlightedDiceTiles || []);
+  setupTurnActive = !!data.setupTurnActive;
+  setupTurnOrder = clone(data.setupTurnOrder || []);
+  setupTurnIndex = data.setupTurnIndex || 0;
+  setupTurnRound = data.setupTurnRound || 1;
+  sevenDiscardActive = !!data.sevenDiscardActive;
+  sevenDiscardQueue = clone(data.sevenDiscardQueue || []);
+  sevenDiscardIndex = data.sevenDiscardIndex || 0;
+  yearOfPlentySelectionActive = !!data.yearOfPlentySelectionActive;
+  monopolySelectionActive = !!data.monopolySelectionActive;
+  roadBuildingActive = !!data.roadBuildingActive;
+  roadBuildingRoadsLeft = data.roadBuildingRoadsLeft || 0;
+
+  const select = document.getElementById("playerSelect");
+  if (select && data.currentPlayer !== undefined) select.value = String(data.currentPlayer);
+  const dice = document.getElementById("diceResult");
+  if (dice) dice.innerHTML = data.diceResultHTML || lastDiceText || "まだ振っていません";
+  const robberStatus = document.getElementById("robberStatus");
+  if (robberStatus) robberStatus.innerHTML = data.robberStatusHTML || "";
+  const logEl = document.getElementById("log");
+  if (logEl && data.logHTML !== undefined) logEl.innerHTML = data.logHTML;
+
+  lastState = null;
+  undoAvailable = false;
+
+  updateTurnDisplay();
+  updateSevenDiscardUI();
+  updateRobberStatus();
+  updateTradeUI();
+  updatePortTradeUI(false);
+  updateDevCardUI();
+  refreshScoreAndResources();
+  redraw();
+}
+
+async function saveBoardToCloud() {
+  if (typeof window.firebaseSaveBoard !== "function") {
+    alert("Firebase接続がまだ準備できていません。少し待ってからもう一度押してください。");
+    return;
+  }
+  try {
+    await window.firebaseSaveBoard(getBoardSaveData());
+    showToast("盤面を保存しました");
+    log("盤面を保存しました。");
+  } catch (error) {
+    console.error(error);
+    alert("盤面保存に失敗しました。Firebaseのデータベース設定を確認してください。");
+  }
+}
+
+async function loadBoardFromCloud() {
+  if (typeof window.firebaseLoadBoard !== "function") {
+    alert("Firebase接続がまだ準備できていません。少し待ってからもう一度押してください。");
+    return;
+  }
+  try {
+    const data = await window.firebaseLoadBoard();
+    if (!data) {
+      alert("保存された盤面がありません。");
+      return;
+    }
+    applyBoardSaveData(data);
+    showToast("盤面を読み込みました");
+    log("盤面を読み込みました。");
+  } catch (error) {
+    console.error(error);
+    alert("盤面読込に失敗しました。Firebaseのデータベース設定を確認してください。");
+  }
+}
 </script>
+
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBB--iZRLLpMQA9s11ot1zobqQBYccq75k",
@@ -6201,10 +6347,20 @@ loadImages().then(generateBoard);
   };
 
   const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const boardRef = doc(db, "boards", "latest");
 
-  // ↓確認用
+  window.firebaseSaveBoard = async function(data) {
+    await setDoc(boardRef, data);
+  };
+
+  window.firebaseLoadBoard = async function() {
+    const snap = await getDoc(boardRef);
+    return snap.exists() ? snap.data() : null;
+  };
+
   console.log("Firebase connected");
 </script>
-  
+
 </body>
 </html>
