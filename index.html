@@ -6340,8 +6340,8 @@ async function loadBoardFromCloud() {
 
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { initializeFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBB--iZRLLpMQA9s11ot1zobqQBYccq75k",
@@ -6353,11 +6353,17 @@ async function loadBoardFromCloud() {
   };
 
   const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+
+  // GitHub Pages / 一部ブラウザ環境で Firestore が offline 扱いになる問題への対策
+  const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
+  });
+
   const boardRef = doc(db, "boards", "latest");
 
   window.firebaseSaveBoard = async function(data) {
-    await setDoc(boardRef, data);
+    await setDoc(boardRef, data, { merge: true });
   };
 
   window.firebaseLoadBoard = async function() {
