@@ -6188,5 +6188,23 @@ loadImages().then(generateBoard);
 })();
 </script>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBB--iZRLLpMQA9s11ot1zobqQBYccq75k",
+    authDomain: "cage-catage.firebaseapp.com",
+    projectId: "cage-catage",
+    storageBucket: "cage-catage.firebasestorage.app",
+    messagingSenderId: "802693507334",
+    appId: "1:802693507334:web:543291623df875d7dcd687"
+  };
+
+  const app = initializeApp(firebaseConfig);
+
+  // ↓確認用
+  console.log("Firebase connected");
+</script>
+  
 </body>
 </html>
