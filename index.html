@@ -2540,7 +2540,7 @@ body {
 .gspPlayerRow input { min-height: 34px; border:1px solid #cbd3df; border-radius: 7px; padding: 4px 8px; font-weight:700; }
 .orderModeRow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .gspHint { margin-top: 10px; border-radius: 10px; padding: 10px; background:#eef6ff; border:1px solid #bad8ff; color:#184a7d; font-size:13px; font-weight:700; }
-.gspSelfColorGrid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.gspSelfColorGrid { display:grid; grid-template-columns: repeat(2, minmax(118px, 1fr)); gap: 10px; }
 .gspSelfColorButton {
   min-height: 58px;
   border: 2px solid #cbd3df;
@@ -2553,8 +2553,11 @@ body {
   justify-content:center;
   gap: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  white-space: nowrap;
+  line-height: 1.1;
 }
-.gspSelfColorButton .gspDot { width: 22px; height: 22px; }
+.gspSelfColorButton .gspDot { width: 22px; height: 22px; flex: 0 0 22px; }
+.gspSelfColorButton .gspSelfColorText { display:inline-block; white-space:nowrap; }
 .gspSelfColorButton.active { border-color:#176bdf; background:#eef6ff; box-shadow:0 0 0 3px rgba(23,107,223,.16); }
 .gspSelfColorButton.taken { opacity:.42; cursor:not-allowed; background:#f3f4f6; }
 .gspSelfColorButton.hidden { display:none; }
@@ -7275,7 +7278,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v194-start-lobby-color-lock",
+    version: "v195-start-lobby-color-toggle-auto-sync",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -8035,7 +8038,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v194: ゲームスタートUIをFirebase同期。色選択は早い者勝ちでブラウザ別に確保。 */
+/* v195: ゲームスタートUI同期。色選択解除・表示調整・自動順番ダイス演出同期。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -8049,8 +8052,11 @@ let gspManualOrder = [0,1,2,3];
 let gspNames = ['赤','青','緑','黄'];
 let gspDragIndex = null;
 let gspAutoOrder = null;
+let gspAutoResults = [];
+let gspLastAutoRollEventId = null;
+let gspRemoteAutoRollQueue = Promise.resolve();
 let gspSelfPlayer = getSelfPlayer();
-let gspLobby = { show:false, claims:{}, names:null, count:null, orderMode:null, order:null, autoOrder:null, updatedAt:0 };
+let gspLobby = { show:false, claims:{}, names:null, count:null, orderMode:null, order:null, autoOrder:null, autoResults:null, updatedAt:0 };
 let gspLastStartedAt = 0;
 function getGspClientId(){
   const key = "catanFirebaseTabClientId";
@@ -8073,6 +8079,7 @@ function buildGspLobbyPatch(extra){
     orderMode: gspOrderMode,
     manualOrder: gspManualOrder.slice(),
     autoOrder: Array.isArray(gspAutoOrder) ? gspAutoOrder.slice() : null,
+    autoResults: Array.isArray(gspAutoResults) ? gspAutoResults.slice() : [],
     claims: Object.assign({}, getGspClaims()),
     updatedAt: Date.now()
   }, extra || {});
@@ -8102,6 +8109,8 @@ function handleRealtimeGameStartLobby(lobby){
   if (lobby.orderMode) gspOrderMode = lobby.orderMode === 'auto' ? 'auto' : 'manual';
   if (Array.isArray(lobby.manualOrder)) gspManualOrder = lobby.manualOrder.map(Number);
   if (Array.isArray(lobby.autoOrder)) gspAutoOrder = lobby.autoOrder.map(Number);
+  if (Array.isArray(lobby.autoResults)) gspAutoResults = lobby.autoResults.slice();
+  if (lobby.autoRolling !== undefined) gspRolling = !!lobby.autoRolling;
   gspSelfPlayer = claimToIndex(gspLobby.claims);
   if (lobby.startedAt && Number(lobby.startedAt) !== gspLastStartedAt) {
     gspLastStartedAt = Number(lobby.startedAt);
@@ -8110,6 +8119,7 @@ function handleRealtimeGameStartLobby(lobby){
     return;
   }
   const overlay = document.getElementById('gameStartOverlay');
+  if (lobby.autoRollEvent) handleGspAutoRollEvent(lobby.autoRollEvent);
   if (lobby.show) {
     renderGameStartSetupPreview(false);
     if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
@@ -8128,6 +8138,8 @@ async function openGameStartSetupPreview(){
   gspSelfPlayer = -1;
   gspManualOrder = normalizeGspManualOrder();
   gspAutoOrder = null;
+  gspAutoResults = [];
+  gspLastAutoRollEventId = null;
   gspLobby = buildGspLobbyPatch({ show:true, claims:{}, openedAt: Date.now() });
   renderGameStartSetupPreview();
   const overlay = document.getElementById('gameStartOverlay');
@@ -8148,15 +8160,16 @@ function setGameStartPreviewCount(n){
   gspSelfPlayer = claimToIndex(claims);
   gspManualOrder = normalizeGspManualOrder();
   gspAutoOrder = null;
+  gspAutoResults = [];
   renderGameStartSetupPreview();
-  publishGameStartLobby({ count:gspCount, names:gspNames.slice(), claims, autoOrder:null });
+  publishGameStartLobby({ count:gspCount, names:gspNames.slice(), claims, autoOrder:null, autoResults:[] });
 }
 function setGameStartOrderMode(mode){
   syncGspNamesFromInputs();
   gspOrderMode = mode === 'auto' ? 'auto' : 'manual';
-  if (gspOrderMode !== 'auto') gspAutoOrder = null;
+  if (gspOrderMode !== 'auto') { gspAutoOrder = null; gspAutoResults = []; }
   renderGameStartSetupPreview(false);
-  publishGameStartLobby({ orderMode:gspOrderMode, names:gspNames.slice(), manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder });
+  publishGameStartLobby({ orderMode:gspOrderMode, names:gspNames.slice(), manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder, autoResults:gspAutoResults.slice() });
 }
 function getGspNameFromMain(i){
   const ids = ['playerNameInput0','playerNameInput1','playerNameInput2','playerNameInput3'];
@@ -8190,10 +8203,15 @@ async function selectGameStartSelfColor(i){
   const my = getGspClientId();
   const key = GSP_COLORS[i].key;
   if (claims[key] && claims[key] !== my) return;
+
+  const wasActive = claims[key] === my;
   GSP_COLORS.forEach(c => { if (claims[c.key] === my) delete claims[c.key]; });
-  claims[key] = my;
+
+  // 同じ色をもう一度押した場合は選択解除。
+  if (!wasActive) claims[key] = my;
+
   gspLobby.claims = claims;
-  gspSelfPlayer = i;
+  gspSelfPlayer = wasActive ? -1 : i;
   renderGameStartSetupPreview(false);
   await publishGameStartLobby({ claims, names:gspNames.slice() });
 }
@@ -8210,7 +8228,7 @@ function renderGameStartSelfColorButtons(){
     const active = claims[c.key] === my;
     const cls = ['gspSelfColorButton', active?'active':'', takenByOther?'taken':'', inactive?'hidden':''].filter(Boolean).join(' ');
     const label = takenByOther ? '使用中' : (active ? '選択中' : c.label);
-    return `<button type="button" class="${cls}" onclick="selectGameStartSelfColor(${i})" ${takenByOther||inactive?'disabled':''}><span class="gspDot ${c.key}"></span><span>${escapeHtml(label)}</span></button>`;
+    return `<button type="button" class="${cls}" onclick="selectGameStartSelfColor(${i})" ${takenByOther||inactive?'disabled':''}><span class="gspDot ${c.key}"></span><span class="gspSelfColorText">${escapeHtml(label)}</span></button>`;
   }).join('');
   if (status) status.textContent = gspSelfPlayer >= 0 ? 'あなたの色：' + getGspName(gspSelfPlayer) : 'あなたの色：未設定';
 }
@@ -8240,15 +8258,25 @@ function renderGameStartSetupPreview(resetList=true){
       return `<div class="gspPlayerRow" style="${locked?'opacity:.55;':''}"${note}><div class="gspColorLabel"><span class="gspDot ${c.key}"></span>${c.label}</div><input id="gspName${i}" value="${escapeHtml(getGspName(i))}" ${locked?'disabled':''} oninput="onGspNameInput()"></div>`;
     }).join('');
   }
-  if (resetList || gspOrderMode === 'manual') {
-    if (gspOrderMode === 'manual') renderGspManualOrderList();
-    else renderGspAutoWaitingList();
-    const total=document.getElementById('gspDiceTotal'); if(total) total.textContent = gspOrderMode === 'auto' ? 'ダイス演出プレビュー' : 'ドラッグで順番を変更できます';
+  if (gspOrderMode === 'manual') {
+    renderGspManualOrderList();
+    const total=document.getElementById('gspDiceTotal'); if(total) total.textContent = 'ドラッグで順番を変更できます';
+  } else {
+    renderGspAutoWaitingList();
+    const total=document.getElementById('gspDiceTotal');
+    if(total && !gspRolling) total.textContent = Array.isArray(gspAutoOrder) && gspAutoOrder.length === gspCount ? '順番が決まりました' : 'ダイス演出プレビュー';
   }
 }
 function renderGspAutoWaitingList(){
   const list=document.getElementById('gspOrderList');
   if (!list) return;
+  if (Array.isArray(gspAutoResults) && gspAutoResults.length) {
+    const rows = gspAutoResults.slice();
+    const orderMap = Array.isArray(gspAutoOrder) && gspAutoOrder.length ? gspAutoOrder : null;
+    if (orderMap) rows.sort((a,b)=> orderMap.indexOf(a.playerIndex) - orderMap.indexOf(b.playerIndex));
+    list.innerHTML = rows.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+    return;
+  }
   list.innerHTML = GSP_COLORS.slice(0,gspCount).map((c,i)=>`<div class="autoOrderRow"><span><span class="gspDot ${c.key}"></span> ${escapeHtml(getGspName(i))}</span><span class="autoOrderDice">未決定</span></div>`).join('');
 }
 function renderGspManualOrderList(){
@@ -8566,35 +8594,81 @@ function playBoardDiceRollAnimation(finalA, finalB){
   });
 }
 
+function renderGspAutoResultsRows(results, sortedOrder){
+  const list=document.getElementById('gspOrderList');
+  if (!list) return;
+  const rows = (results || []).slice();
+  if (Array.isArray(sortedOrder) && sortedOrder.length) rows.sort((a,b)=> sortedOrder.indexOf(a.playerIndex) - sortedOrder.indexOf(b.playerIndex));
+  list.innerHTML = rows.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+}
+function handleGspAutoRollEvent(event){
+  if (!event || !event.id || event.id === gspLastAutoRollEventId) return;
+  if (event.startedAt && Date.now() - Number(event.startedAt) > 12000) { gspLastAutoRollEventId = event.id; return; }
+  gspLastAutoRollEventId = event.id;
+  gspRemoteAutoRollQueue = gspRemoteAutoRollQueue.then(async () => {
+    gspRolling = true;
+    gspOrderMode = 'auto';
+    const total=document.getElementById('gspDiceTotal'), btn=document.getElementById('gspRollBtn');
+    if(btn) btn.disabled=true;
+    const before = Array.isArray(event.resultsBefore) ? event.resultsBefore.slice() : (Array.isArray(gspAutoResults) ? gspAutoResults.slice() : []);
+    gspAutoResults = before;
+    renderGspAutoResultsRows(gspAutoResults);
+    if(total) total.textContent = `${event.name || getGspName(event.playerIndex)} がダイスを振っています...`;
+    await playBoardDiceRollAnimation(Number(event.d1)||1, Number(event.d2)||1);
+    const row = { playerIndex:Number(event.playerIndex), name:event.name || getGspName(event.playerIndex), color:event.color || (GSP_COLORS[event.playerIndex]||GSP_COLORS[0]).key, d1:Number(event.d1)||1, d2:Number(event.d2)||1, total:(Number(event.d1)||1)+(Number(event.d2)||1) };
+    if (!gspAutoResults.some(r => Number(r.playerIndex) === row.playerIndex)) gspAutoResults.push(row);
+    renderGspAutoResultsRows(gspAutoResults);
+    if(total) total.textContent = gspAutoResults.length >= gspCount ? '順番が決まりました' : 'ダイス演出中';
+    if(btn) btn.disabled=false;
+    gspRolling=false;
+  }).catch(e => { console.warn('game start auto roll sync skipped', e); gspRolling=false; });
+}
 async function rollGameStartOrderPreview(){
   if (gspRolling) return;
   syncGspNamesFromInputs();
   gspRolling = true;
   gspAutoOrder = null;
+  gspAutoResults = [];
   gspOrderMode = 'auto';
   renderGameStartSetupPreview(false);
   const total=document.getElementById('gspDiceTotal'), btn=document.getElementById('gspRollBtn');
   if(btn) btn.disabled=true;
+  await publishGameStartLobby({ orderMode:'auto', names:gspNames.slice(), autoOrder:null, autoResults:[], autoRolling:true });
   const results=[];
   for (let idx=0; idx<gspCount; idx++) {
     const playerName = getGspName(idx);
     if(total) total.textContent = `${playerName} がダイスを振っています...`;
     const a=1+Math.floor(Math.random()*6), b=1+Math.floor(Math.random()*6);
+    const event = {
+      id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2,8)}`,
+      kind: 'gameStartAutoOrder',
+      playerIndex: idx,
+      name: playerName,
+      color: GSP_COLORS[idx].key,
+      d1: a,
+      d2: b,
+      total: a+b,
+      resultsBefore: results.slice(),
+      startedAt: Date.now()
+    };
+    await publishGameStartLobby({ orderMode:'auto', names:gspNames.slice(), autoRollEvent:event, autoResults:results.slice(), autoRolling:true });
     await playBoardDiceRollAnimation(a,b);
     results.push({ playerIndex: idx, name: playerName, color:GSP_COLORS[idx].key, d1:a, d2:b, total:a+b });
-    const list=document.getElementById('gspOrderList');
-    if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+    gspAutoResults = results.slice();
+    renderGspAutoResultsRows(gspAutoResults);
+    await publishGameStartLobby({ orderMode:'auto', names:gspNames.slice(), autoResults:gspAutoResults.slice(), autoRolling:true });
     await new Promise(r => setTimeout(r, 220));
   }
-  results.sort((a,b)=> (b.total-a.total) || (a.playerIndex-b.playerIndex));
-  gspAutoOrder = results.map(r => r.playerIndex);
-  publishGameStartLobby({ orderMode:'auto', autoOrder:gspAutoOrder.slice(), names:gspNames.slice() });
-  const list=document.getElementById('gspOrderList');
-  if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
+  const sorted = results.slice().sort((a,b)=> (b.total-a.total) || (a.playerIndex-b.playerIndex));
+  gspAutoOrder = sorted.map(r => r.playerIndex);
+  gspAutoResults = sorted.slice();
+  await publishGameStartLobby({ orderMode:'auto', autoOrder:gspAutoOrder.slice(), autoResults:gspAutoResults.slice(), names:gspNames.slice(), autoRolling:false });
+  renderGspAutoResultsRows(gspAutoResults, gspAutoOrder);
   if(total) total.textContent='順番が決まりました';
   if(btn) btn.disabled=false;
   gspRolling=false;
 }
+
 function previewGameStartConfirm(){
   if (gspRolling) return;
   syncGspNamesFromInputs();
@@ -8641,7 +8715,7 @@ function previewGameStartConfirm(){
   log('ゲーム開始設定を反映しました。順番：' + gameTurnOrder.map(p => getPlayerName(p)).join(' → ') + ' / あなた：' + (getSelfPlayer() >= 0 ? getPlayerName(getSelfPlayer()) : '未参加'));
   const startedAt = Date.now();
   gspLastStartedAt = startedAt;
-  publishGameStartLobby({ show:false, startedAt, claims:getGspClaims(), names:gspNames.slice(), count:gspCount, orderMode:gspOrderMode, manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder });
+  publishGameStartLobby({ show:false, startedAt, claims:getGspClaims(), names:gspNames.slice(), count:gspCount, orderMode:gspOrderMode, manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder, autoResults:gspAutoResults.slice(), autoRolling:false });
   scheduleCloudAutoSave();
 }
 </script>
