@@ -7278,7 +7278,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v197-color-claim-null-sync-fix",
+    version: "v198-color-release-name-reset",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -8038,7 +8038,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v197: 色選択変更時の解放を全ブラウザへ確実に同期する修正。 */
+/* v198: 色選択解除・色変更時に、解放された色のプレイヤー名も初期名へ戻す修正。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -8223,8 +8223,6 @@ async function selectGameStartSelfColor(i){
   i = Number(i);
   if (i < 0 || i >= gspCount) return;
 
-  // v196: 色変更時に、前にこのブラウザが確保していた色を必ず解放する。
-  // これにより「赤→青→緑→黄」と切り替えた時に、他ブラウザ側で古い色が使用中のまま残る問題を防ぐ。
   const claims = Object.assign({}, getGspClaims());
   const my = getGspClientId();
   const key = GSP_COLORS[i].key;
@@ -8234,10 +8232,14 @@ async function selectGameStartSelfColor(i){
   if (claims[key] && claims[key] !== my && key !== previousKey) return;
 
   const wasActive = claims[key] === my || previousKey === key;
+  const releasedKeys = new Set();
 
   // 自分のクライアントIDで確保している色を全部解放。
   GSP_COLORS.forEach(c => {
-    if (claims[c.key] === my) delete claims[c.key];
+    if (claims[c.key] === my) {
+      delete claims[c.key];
+      releasedKeys.add(c.key);
+    }
   });
 
   // このブラウザが直前に選んだ色も解放。
@@ -8245,6 +8247,7 @@ async function selectGameStartSelfColor(i){
   if (previousKey && GSP_COLORS.some(c => c.key === previousKey)) {
     if (!claims[previousKey] || claims[previousKey] === my || previousKey !== key) {
       delete claims[previousKey];
+      releasedKeys.add(previousKey);
     }
   }
 
@@ -8252,11 +8255,19 @@ async function selectGameStartSelfColor(i){
   if (wasActive) {
     setGspLocalClaimKey('');
     gspSelfPlayer = -1;
+    releasedKeys.add(key);
   } else {
     claims[key] = my;
     setGspLocalClaimKey(key);
     gspSelfPlayer = i;
+    releasedKeys.delete(key);
   }
+
+  // v198: 解放された色のプレイヤー名は全ブラウザで初期名へ戻す。
+  releasedKeys.forEach(releasedKey => {
+    const idx = GSP_COLORS.findIndex(c => c.key === releasedKey);
+    if (idx >= 0) gspNames[idx] = GSP_COLORS[idx].label;
+  });
 
   gspLobby.claims = claims;
   renderGameStartSetupPreview(false);
