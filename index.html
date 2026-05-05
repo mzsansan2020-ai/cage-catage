@@ -2235,6 +2235,7 @@ body {
   box-shadow: 0 2px 0 color-mix(in srgb, var(--robber-color, #d92727) 70%, #000);
 }
 .robberConfirmBtn:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
+#robberReturnToActiveBtn { background: var(--robber-color, #d92727); color:#fff; border-color: var(--robber-color, #d92727); }
 .robberNote { font-size:12px; color:#666; text-align:center; margin-top:8px; }
 .robberWaitingBox {
   display:none;
@@ -2813,6 +2814,7 @@ let undoAvailable = false;
 let sevenDiscardActive = false;
 let sevenDiscardQueue = [];
 let sevenDiscardIndex = 0;
+let currentPhase = "dice";
 let yearOfPlentySelectionActive = false;
 let monopolySelectionActive = false;
 let roadBuildingActive = false;
@@ -3465,6 +3467,7 @@ function updateRobberStatus() {
 }
 
 function startRobberMode() {
+  currentPhase = "robber";
   if (pendingRobberSteal) {
     log("現在の盗賊処理を先に完了してください。");
     return;
@@ -3578,6 +3581,7 @@ function getTotalResourceCount(player) {
 }
 
 function startSevenDiscardProcess() {
+  currentPhase = "robber";
   sevenDiscardQueue = playerNames
     .map((_, player) => player)
     .filter(player => getTotalResourceCount(player) >= 8);
@@ -3597,6 +3601,7 @@ function startSevenDiscardProcess() {
 }
 
 function enterRobberModeAfterSeven() {
+  currentPhase = "robber";
   robberMode = true;
   pendingRobberSteal = false;
   pendingRobberPlayer = null;
@@ -3760,6 +3765,7 @@ function moveRobber(tileIndex) {
     clearRobberTargetSelect();
     pendingRobberSteal = false;
     pendingRobberPlayer = null;
+    currentPhase = "build";
     updateRobberStatus();
     updateDevCardUI();
     updateLargestArmyTable();
@@ -3783,6 +3789,7 @@ function moveRobber(tileIndex) {
     pendingRobberSteal = false;
     pendingRobberPlayer = null;
     clearRobberTargetSelect();
+    currentPhase = "build";
     updateDevCardUI();
     updateLargestArmyTable();
     updateVictoryTable();
@@ -3814,6 +3821,7 @@ function confirmRobberSteal() {
   robberSteal(robberTileIndex, pendingRobberPlayer);
   pendingRobberSteal = false;
   pendingRobberPlayer = null;
+  currentPhase = "build";
   clearRobberTargetSelect();
   updateDevCardUI();
   updateLargestArmyTable();
@@ -4302,6 +4310,54 @@ function updateTurnDisplay() {
   }
 }
 
+function getCurrentPhaseText() {
+  switch (currentPhase) {
+    case "robber":
+      return "現在フェーズ：盗賊処理中";
+    case "build":
+      return "現在フェーズ：建設や交渉が出来ます";
+    case "endConfirm":
+      return "現在フェーズ：ターンを終了しますか？";
+    case "dice":
+    default:
+      return "現在フェーズ：ダイスを振ってください";
+  }
+}
+
+function setGamePhase(phase, shouldRedraw = true) {
+  currentPhase = phase || "dice";
+  if (shouldRedraw) redraw();
+}
+
+function drawPhaseBanner() {
+  const text = getCurrentPhaseText();
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,.88)";
+  ctx.strokeStyle = "#222";
+  ctx.lineWidth = 3;
+
+  const w = 390;
+  const h = 52;
+  const x = canvas.width - w - 20;
+  const y = 20;
+
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, 14);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#111";
+  ctx.font = "bold 17px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + w / 2, y + h / 2);
+  ctx.restore();
+}
+
 function nextTurn() {
   if (roadBuildingActive) {
     log("街道建設の道を置き終わるまでターンを進められません。");
@@ -4328,6 +4384,7 @@ function nextTurn() {
   updateTradeUI();
   updatePortTradeUI(false);
   updateDevCardUI();
+  currentPhase = "dice";
   redraw();
   log("ターン変更：" + getPlayerName(next) + "のターンです。");
 }
@@ -4470,6 +4527,7 @@ function redraw() {
   drawVertices();
   drawRobber();
   drawTurnBanner();
+  drawPhaseBanner();
   drawLongestRoadLabel();
   drawDicePanel();
   drawToastMessage();
@@ -4521,6 +4579,7 @@ function generateBoard() {
   lastDiceTotal = null;
   lastDiceText = "";
   highlightedDiceTiles = [];
+  currentPhase = "dice";
   document.getElementById("diceResult").textContent = "まだ振っていません";
   clearLog();
   log("新しい盤面を作成しました。");
@@ -4539,6 +4598,7 @@ function resetPieces() {
   sevenDiscardIndex = 0;
   roadBuildingActive = false;
   roadBuildingRoadsLeft = 0;
+  currentPhase = "dice";
   updateSevenDiscardUI();
   log("建物・道・資源をリセットしました。");
   redraw();
@@ -4750,6 +4810,7 @@ canvas.addEventListener("click", e => {
     giveInitialSetupResources(idx, player);
   }
   updateLongestRoadTable();
+  currentPhase = "build";
   redraw();
   updateResourceTable();
   updateVictoryTable();
@@ -4786,6 +4847,7 @@ function rollDice() {
   redraw();
 
   if (total === 7) {
+    currentPhase = "robber";
     startSevenDiscardProcess();
     redraw();
     return;
@@ -4821,11 +4883,13 @@ function rollDice() {
   });
   if (!any) log(total + "の資源獲得はありません。");
 
+  currentPhase = "build";
   updateResourceTable();
   updateVictoryTable();
   updatePlayerCardsUI();
   updateTradeUI();
   updatePortTradeUI(false);
+  redraw();
 }
 
 
@@ -5512,6 +5576,7 @@ function useKnightCard() {
   checkVictory();
 
   // 既存の盗賊処理を再利用。移動後は資源を奪うボタンで完了。
+  currentPhase = "robber";
   robberMode = true;
   pendingRobberSteal = false;
   pendingRobberPlayer = null;
@@ -6759,6 +6824,7 @@ function getBoardSaveData() {
     sevenDiscardActive,
     sevenDiscardQueue: clone(sevenDiscardQueue || []),
     sevenDiscardIndex,
+    currentPhase,
     yearOfPlentySelectionActive,
     monopolySelectionActive,
     roadBuildingActive,
@@ -6806,6 +6872,7 @@ function applyBoardSaveData(data) {
   sevenDiscardActive = !!data.sevenDiscardActive;
   sevenDiscardQueue = clone(data.sevenDiscardQueue || []);
   sevenDiscardIndex = data.sevenDiscardIndex || 0;
+  currentPhase = data.currentPhase || (sevenDiscardActive || robberMode || pendingRobberSteal ? "robber" : (lastDiceTotal ? "build" : "dice"));
   yearOfPlentySelectionActive = !!data.yearOfPlentySelectionActive;
   monopolySelectionActive = !!data.monopolySelectionActive;
   roadBuildingActive = !!data.roadBuildingActive;
@@ -6975,6 +7042,44 @@ function hideRobberUiPreview() {
   backdrop.classList.remove('show');
   backdrop.setAttribute('aria-hidden', 'true');
 }
+function showRobberWaitingScreen() {
+  const modal = document.getElementById('robberPreviewModal');
+  const backdrop = document.getElementById('robberPreviewBackdrop');
+  if (!modal || !backdrop) return;
+  if (robberModalMode === 'actual' && sevenDiscardActive) {
+    const player = sevenDiscardQueue[sevenDiscardIndex];
+    renderRobberQueueWaiting(player);
+    modal.classList.add('waiting');
+    modal.classList.add('actualLocked');
+    backdrop.classList.add('show');
+    backdrop.setAttribute('aria-hidden', 'false');
+    updateRobberReturnButtonVisibility();
+    return;
+  }
+  showRobberUiPreview(true);
+}
+function returnToRobberDiscardUi() {
+  if (!(robberModalMode === 'actual' && sevenDiscardActive)) return;
+  const player = sevenDiscardQueue[sevenDiscardIndex];
+  if (typeof getSelfPlayer === 'function' && getSelfPlayer() !== player) return;
+  const modal = document.getElementById('robberPreviewModal');
+  const backdrop = document.getElementById('robberPreviewBackdrop');
+  if (!modal || !backdrop) return;
+  modal.classList.remove('waiting');
+  modal.classList.add('actualLocked');
+  backdrop.classList.add('show');
+  backdrop.setAttribute('aria-hidden', 'false');
+  updateRobberPreviewUi();
+  updateRobberReturnButtonVisibility();
+}
+function updateRobberReturnButtonVisibility() {
+  const btn = document.getElementById('robberReturnToActiveBtn');
+  if (!btn) return;
+  const player = sevenDiscardActive ? sevenDiscardQueue[sevenDiscardIndex] : null;
+  const isSelf = robberModalMode === 'actual' && sevenDiscardActive && typeof getSelfPlayer === 'function' && getSelfPlayer() === player;
+  btn.style.display = isSelf ? 'inline-block' : 'none';
+  btn.disabled = !isSelf;
+}
 function getRobberCurrentHoldings() {
   if (robberModalMode === 'actual' && sevenDiscardActive) {
     const player = sevenDiscardQueue[sevenDiscardIndex];
@@ -7092,6 +7197,7 @@ function syncRobberDiscardModalFromState() {
   if (instruction) instruction.textContent = 'あなたの番です。資源を' + need + '枚捨ててください。';
   if (waitingText) waitingText.textContent = theme.name + 'のプレイヤーの処理を待っています。';
   renderRobberQueueWaiting(player);
+  updateRobberReturnButtonVisibility();
   updateRobberPreviewUi();
   backdrop.classList.add('show');
   backdrop.setAttribute('aria-hidden', 'false');
@@ -7295,7 +7401,7 @@ function renderRobberQueueWaiting(currentPlayer) {
               <div class="robberProgressPercent" id="robberPreviewPercent">0%</div>
             </div>
             <div class="robberActionButtons">
-              <button class="robberPreviewSwitchBtn" onclick="showRobberUiPreview(true)">待機画面を見る</button>
+              <button class="robberPreviewSwitchBtn" onclick="showRobberWaitingScreen()">待機画面を見る</button>
               <button class="robberCancelBtn" onclick="hideRobberUiPreview()">キャンセル</button>
               <button id="robberPreviewConfirm" class="robberConfirmBtn" disabled>確定して捨てる</button>
             </div>
@@ -7312,7 +7418,10 @@ function renderRobberQueueWaiting(currentPlayer) {
             <span>→</span>
             <div class="robberQueuePlayer"><span class="robberQueueIcon gray"></span><span>盗賊の移動へ</span></div>
           </div>
-          <div style="margin-top:24px;"><button class="robberCancelBtn" onclick="hideRobberUiPreview()">閉じる</button></div>
+          <div style="margin-top:24px; display:flex; justify-content:center; gap:14px; flex-wrap:wrap;">
+            <button id="robberReturnToActiveBtn" class="robberConfirmBtn" onclick="returnToRobberDiscardUi()" style="display:none; min-width:220px;">盗賊の対処に戻る</button>
+            <button class="robberCancelBtn" onclick="hideRobberUiPreview()">閉じる</button>
+          </div>
         </div>
       </div>
     </div>
