@@ -2540,9 +2540,25 @@ body {
 .gspPlayerRow input { min-height: 34px; border:1px solid #cbd3df; border-radius: 7px; padding: 4px 8px; font-weight:700; }
 .orderModeRow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .gspHint { margin-top: 10px; border-radius: 10px; padding: 10px; background:#eef6ff; border:1px solid #bad8ff; color:#184a7d; font-size:13px; font-weight:700; }
-.gspSelfSelectRow { display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; }
-.gspSelfSelectRow label { font-weight:800; }
-.gspSelfSelectRow select { min-height: 38px; border:1px solid #cbd3df; border-radius: 8px; padding: 4px 8px; font-weight:800; background:#fff; }
+.gspSelfColorGrid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.gspSelfColorButton {
+  min-height: 58px;
+  border: 2px solid #cbd3df;
+  border-radius: 12px;
+  background: #fff;
+  font-weight: 900;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+}
+.gspSelfColorButton .gspDot { width: 22px; height: 22px; }
+.gspSelfColorButton.active { border-color:#176bdf; background:#eef6ff; box-shadow:0 0 0 3px rgba(23,107,223,.16); }
+.gspSelfColorButton.taken { opacity:.42; cursor:not-allowed; background:#f3f4f6; }
+.gspSelfColorButton.hidden { display:none; }
+.gspSelfStatus { margin-top:8px; font-size:13px; color:#184a7d; font-weight:800; }
 .gspSelfLocalNote { margin-top:8px; font-size:12px; color:#6b7280; font-weight:700; }
 .gspActions { display:flex; gap: 12px; justify-content:flex-end; margin-top: 16px; }
 .gspActions button { min-height: 42px; padding: 0 18px; border-radius: 9px; font-weight:900; cursor:pointer; border:1px solid #cbd3df; }
@@ -3156,10 +3172,8 @@ function activePlayerTurnOrder() {
   gameTurnOrder = normalizeGameTurnOrder(gameTurnOrder);
   return gameTurnOrder.slice();
 }
-let selfPlayerIndex = (() => {
-  const stored = localStorage.getItem("catanSelfPlayerIndex");
-  return stored === null ? -1 : Number(stored);
-})();
+let selfPlayerIndex = -1;
+try { localStorage.setItem("catanSelfPlayerIndex", "-1"); } catch(e) {}
 const playerColors = ["#d93025", "#1a73e8", "#2eae3f", "#f4c20d"];
 const playerStroke = ["#7a120c", "#0b3d91", "#16651f", "#9b7a00"];
 
@@ -7261,7 +7275,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v193-local-self-dice-sync",
+    version: "v194-start-lobby-color-lock",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -7449,6 +7463,7 @@ window.applyRealtimeBoardData = function(data) {
   applyingCloudUpdate = true;
   try {
     applyBoardSaveData(data);
+    handleRealtimeGameStartLobby(data.gameStartLobby);
     handleRealtimeDiceAnimationEvent(data.diceAnimationEvent);
     if (cloudRealtimeReady) showToast("盤面を自動更新しました");
     cloudRealtimeReady = true;
@@ -7838,8 +7853,19 @@ function renderRobberQueueWaiting(currentPlayer) {
     });
   }
 
+  window.firebaseClientId = clientId;
+
   window.firebaseSaveBoard = async function(data) {
     await setDoc(boardRef, { ...data, roomId: currentRoomIdForFirebase, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
+  };
+
+  window.firebasePublishGameStartLobby = async function(lobby) {
+    await setDoc(boardRef, {
+      gameStartLobby: lobby,
+      roomId: currentRoomIdForFirebase,
+      updatedByClientId: clientId,
+      cloudUpdatedAt: Date.now()
+    }, { merge: true });
   };
 
   window.firebasePublishDiceAnimation = async function(event) {
@@ -7970,30 +7996,28 @@ function renderRobberQueueWaiting(currentPlayer) {
             </div>
           </div>
           <div class="gspStep">
-            <div class="gspStepTitle">2. プレイヤー名</div>
+            <div class="gspStepTitle">2. あなたの色を決めてください</div>
+            <div id="gspSelfColorGrid" class="gspSelfColorGrid"></div>
+            <div id="gspSelfStatus" class="gspSelfStatus">あなたの色：未設定</div>
+            <div class="gspSelfLocalNote">※ 色は早い者勝ちです。選んだ色はこのブラウザだけの操作プレイヤーになります。</div>
+          </div>
+          <div class="gspStep">
+            <div class="gspStepTitle">3. プレイヤー名</div>
             <div id="gspPlayerRows" class="gspPlayerRows"></div>
           </div>
           <div class="gspStep">
-            <div class="gspStepTitle">3. 順番の決め方</div>
+            <div class="gspStepTitle">4. 順番の決め方</div>
             <div class="orderModeRow">
               <button id="gspManualBtn" class="active" onclick="setGameStartOrderMode('manual')">手動で決める</button>
               <button id="gspAutoBtn" onclick="setGameStartOrderMode('auto')">自動で決める<br><span style="font-size:11px;">ダイスの大きい順</span></button>
             </div>
             <div class="gspHint" id="gspModeHint">手動の場合は、プレイヤー名の並び順をそのままターン順として使う想定です。</div>
           </div>
-          <div class="gspStep">
-            <div class="gspStepTitle">4. このブラウザの参加色</div>
-            <div class="gspSelfSelectRow">
-              <label for="gspSelfPlayerSelect">あなた：</label>
-              <select id="gspSelfPlayerSelect" onchange="setGameStartSelfPlayerFromUI()"></select>
-            </div>
-            <div class="gspSelfLocalNote">※ この設定は同期せず、このブラウザだけに保存します。未参加の場合は操作不可です。</div>
-          </div>
           <div class="gspActions">
             <button class="gspCancel" onclick="closeGameStartSetupPreview()">キャンセル</button>
             <button class="gspPrimary" onclick="previewGameStartConfirm()">この内容で開始</button>
           </div>
-          <div class="gameStartNote">※ この内容でゲーム開始すると、人数・名前・ターン順を反映します。参加色はこのブラウザだけに保存します。</div>
+          <div class="gameStartNote">※ この内容でゲーム開始すると、人数・名前・ターン順を反映します。あなたの色は各ブラウザごとに反映します。</div>
         </div>
         <div class="gameStartPanel dicePreviewPanel">
           <h4>自動で順番を決める</h4>
@@ -8011,7 +8035,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v193: ゲームスタートUIにローカル操作プレイヤー選択を追加。通常ダイス演出をFirebase同期。 */
+/* v194: ゲームスタートUIをFirebase同期。色選択は早い者勝ちでブラウザ別に確保。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -8026,36 +8050,113 @@ let gspNames = ['赤','青','緑','黄'];
 let gspDragIndex = null;
 let gspAutoOrder = null;
 let gspSelfPlayer = getSelfPlayer();
+let gspLobby = { show:false, claims:{}, names:null, count:null, orderMode:null, order:null, autoOrder:null, updatedAt:0 };
+let gspLastStartedAt = 0;
+function getGspClientId(){
+  const key = "catanFirebaseTabClientId";
+  let id = sessionStorage.getItem(key);
+  if (!id) { id = String(Date.now()) + "-" + Math.random().toString(36).slice(2); sessionStorage.setItem(key, id); }
+  return id;
+}
+function getGspClaims(){ return (gspLobby && gspLobby.claims) ? gspLobby.claims : {}; }
+function claimToIndex(claims){
+  const my = getGspClientId();
+  const keys = ['red','blue','green','yellow'];
+  for (let i=0;i<keys.length;i++) if (claims && claims[keys[i]] === my) return i;
+  return -1;
+}
+function buildGspLobbyPatch(extra){
+  return Object.assign({
+    show: true,
+    count: gspCount,
+    names: gspNames.slice(),
+    orderMode: gspOrderMode,
+    manualOrder: gspManualOrder.slice(),
+    autoOrder: Array.isArray(gspAutoOrder) ? gspAutoOrder.slice() : null,
+    claims: Object.assign({}, getGspClaims()),
+    updatedAt: Date.now()
+  }, extra || {});
+}
+async function publishGameStartLobby(extra){
+  const patch = buildGspLobbyPatch(extra);
+  gspLobby = patch;
+  if (typeof window.firebasePublishGameStartLobby === 'function') {
+    try { await window.firebasePublishGameStartLobby(patch); } catch(e) { console.warn('game start lobby sync skipped', e); }
+  }
+}
+function applyLocalSelfFromGspClaims(claims){
+  const idx = claimToIndex(claims || getGspClaims());
+  selfPlayerIndex = idx >= 0 && idx < activePlayerCount ? idx : -1;
+  try { localStorage.setItem("catanSelfPlayerIndex", String(selfPlayerIndex)); } catch(e) {}
+  refreshPlayerSelectOptions();
+  updateResourceTable();
+  updateDevCardUI();
+  updatePlayerCardsUI();
+  updateDiceButtonState();
+}
+function handleRealtimeGameStartLobby(lobby){
+  if (!lobby) return;
+  gspLobby = Object.assign({}, gspLobby || {}, lobby || {}, { claims: Object.assign({}, (lobby && lobby.claims) || {}) });
+  if (Array.isArray(lobby.names)) gspNames = lobby.names.slice(0,4).concat(['赤','青','緑','黄']).slice(0,4);
+  if (lobby.count) gspCount = Math.max(2, Math.min(4, Number(lobby.count)||2));
+  if (lobby.orderMode) gspOrderMode = lobby.orderMode === 'auto' ? 'auto' : 'manual';
+  if (Array.isArray(lobby.manualOrder)) gspManualOrder = lobby.manualOrder.map(Number);
+  if (Array.isArray(lobby.autoOrder)) gspAutoOrder = lobby.autoOrder.map(Number);
+  gspSelfPlayer = claimToIndex(gspLobby.claims);
+  if (lobby.startedAt && Number(lobby.startedAt) !== gspLastStartedAt) {
+    gspLastStartedAt = Number(lobby.startedAt);
+    applyLocalSelfFromGspClaims(gspLobby.claims);
+    closeGameStartSetupPreview(false);
+    return;
+  }
+  const overlay = document.getElementById('gameStartOverlay');
+  if (lobby.show) {
+    renderGameStartSetupPreview(false);
+    if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
+  } else if (overlay) {
+    overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true');
+  }
+}
 
-function openGameStartSetupPreview(){
+
+async function openGameStartSetupPreview(){
   try {
     const countSelect = document.getElementById('playerCountSelect');
     if (countSelect) gspCount = parseInt(countSelect.value || '2', 10) || 2;
   } catch(e) {}
   gspNames = GSP_COLORS.map((_, i) => getGspNameFromMain(i));
-  gspSelfPlayer = getSelfPlayer();
+  gspSelfPlayer = -1;
   gspManualOrder = normalizeGspManualOrder();
   gspAutoOrder = null;
+  gspLobby = buildGspLobbyPatch({ show:true, claims:{}, openedAt: Date.now() });
   renderGameStartSetupPreview();
   const overlay = document.getElementById('gameStartOverlay');
   if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden','false'); }
+  await publishGameStartLobby({ show:true, claims:gspLobby.claims, openedAt:gspLobby.openedAt });
 }
-function closeGameStartSetupPreview(){
+async function closeGameStartSetupPreview(sync=true){
   const overlay = document.getElementById('gameStartOverlay');
   if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden','true'); }
+  if (sync) await publishGameStartLobby({ show:false, claims:{}, closedAt: Date.now() });
 }
 function setGameStartPreviewCount(n){
   syncGspNamesFromInputs();
   gspCount = Math.max(2, Math.min(4, Number(n)||2));
+  const claims = Object.assign({}, getGspClaims());
+  GSP_COLORS.forEach((c,i)=>{ if (i >= gspCount) delete claims[c.key]; });
+  gspLobby.claims = claims;
+  gspSelfPlayer = claimToIndex(claims);
   gspManualOrder = normalizeGspManualOrder();
   gspAutoOrder = null;
   renderGameStartSetupPreview();
+  publishGameStartLobby({ count:gspCount, names:gspNames.slice(), claims, autoOrder:null });
 }
 function setGameStartOrderMode(mode){
   syncGspNamesFromInputs();
   gspOrderMode = mode === 'auto' ? 'auto' : 'manual';
   if (gspOrderMode !== 'auto') gspAutoOrder = null;
   renderGameStartSetupPreview(false);
+  publishGameStartLobby({ orderMode:gspOrderMode, names:gspNames.slice(), manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder });
 }
 function getGspNameFromMain(i){
   const ids = ['playerNameInput0','playerNameInput1','playerNameInput2','playerNameInput3'];
@@ -8068,8 +8169,13 @@ function getGspName(i){
 function syncGspNamesFromInputs(){
   GSP_COLORS.forEach((_, i) => {
     const el = document.getElementById('gspName' + i);
-    if (el) gspNames[i] = el.value || GSP_COLORS[i].label;
+    if (el && !el.disabled) gspNames[i] = el.value || GSP_COLORS[i].label;
   });
+}
+function onGspNameInput(){
+  syncGspNamesFromInputs();
+  if(gspOrderMode==='manual') renderGspManualOrderList();
+  publishGameStartLobby({ names:gspNames.slice(), manualOrder:gspManualOrder.slice() });
 }
 function normalizeGspManualOrder(){
   const active = Array.from({length:gspCount}, (_, i) => i);
@@ -8077,20 +8183,36 @@ function normalizeGspManualOrder(){
   active.forEach(i => { if (!kept.includes(i)) kept.push(i); });
   return kept;
 }
-function setGameStartSelfPlayerFromUI(){
-  const sel = document.getElementById('gspSelfPlayerSelect');
-  const raw = Number(sel ? sel.value : -1);
-  gspSelfPlayer = raw >= 0 && raw < gspCount ? raw : -1;
+async function selectGameStartSelfColor(i){
+  i = Number(i);
+  if (i < 0 || i >= gspCount) return;
+  const claims = Object.assign({}, getGspClaims());
+  const my = getGspClientId();
+  const key = GSP_COLORS[i].key;
+  if (claims[key] && claims[key] !== my) return;
+  GSP_COLORS.forEach(c => { if (claims[c.key] === my) delete claims[c.key]; });
+  claims[key] = my;
+  gspLobby.claims = claims;
+  gspSelfPlayer = i;
+  renderGameStartSetupPreview(false);
+  await publishGameStartLobby({ claims, names:gspNames.slice() });
 }
-function renderGameStartSelfPlayerSelect(){
-  const sel = document.getElementById('gspSelfPlayerSelect');
-  if (!sel) return;
-  if (gspSelfPlayer >= gspCount) gspSelfPlayer = -1;
-  const opts = [`<option value="-1">未参加（観戦）</option>`].concat(
-    GSP_COLORS.slice(0, gspCount).map((c, i) => `<option value="${i}">${escapeHtml(getGspName(i))}</option>`)
-  );
-  sel.innerHTML = opts.join('');
-  sel.value = String(gspSelfPlayer);
+function renderGameStartSelfColorButtons(){
+  const grid = document.getElementById('gspSelfColorGrid');
+  const status = document.getElementById('gspSelfStatus');
+  if (!grid) return;
+  const claims = getGspClaims();
+  const my = getGspClientId();
+  gspSelfPlayer = claimToIndex(claims);
+  grid.innerHTML = GSP_COLORS.map((c,i)=>{
+    const inactive = i >= gspCount;
+    const takenByOther = !!claims[c.key] && claims[c.key] !== my;
+    const active = claims[c.key] === my;
+    const cls = ['gspSelfColorButton', active?'active':'', takenByOther?'taken':'', inactive?'hidden':''].filter(Boolean).join(' ');
+    const label = takenByOther ? '使用中' : (active ? '選択中' : c.label);
+    return `<button type="button" class="${cls}" onclick="selectGameStartSelfColor(${i})" ${takenByOther||inactive?'disabled':''}><span class="gspDot ${c.key}"></span><span>${escapeHtml(label)}</span></button>`;
+  }).join('');
+  if (status) status.textContent = gspSelfPlayer >= 0 ? 'あなたの色：' + getGspName(gspSelfPlayer) : 'あなたの色：未設定';
 }
 function renderGameStartSetupPreview(resetList=true){
   [2,3,4].forEach(n => { const b=document.getElementById('gspCount'+n); if(b) b.classList.toggle('active', n===gspCount); });
@@ -8107,14 +8229,17 @@ function renderGameStartSetupPreview(resetList=true){
   setDiceFace(document.getElementById('gspDice2'), 5);
   const rightHint = document.querySelector('.dicePreviewPanel .gspHint');
   if (rightHint) rightHint.textContent = gspOrderMode === 'auto' ? '自動で決める場合は、演出後に各プレイヤーの出目を表示し、大きい順に並べる想定です。' : '行をつかんで上下にドラッグすると、手動で順番を入れ替えできます。';
+  renderGameStartSelfColorButtons();
   const rows=document.getElementById('gspPlayerRows');
   if (rows) {
+    const my = gspSelfPlayer;
     rows.innerHTML = GSP_COLORS.map((c,i)=>{
-      const disabled = i >= gspCount;
-      return `<div class="gspPlayerRow" style="${disabled?'opacity:.45;':''}"><div class="gspColorLabel"><span class="gspDot ${c.key}"></span>${c.label}</div><input id="gspName${i}" value="${escapeHtml(getGspName(i))}" ${disabled?'disabled':''} oninput="syncGspNamesFromInputs(); if(gspOrderMode==='manual') renderGspManualOrderList();"></div>`;
+      const inactive = i >= gspCount;
+      const locked = inactive || i !== my;
+      const note = inactive ? '' : (i === my ? '' : ' title="自分の色を選ぶと編集できます"');
+      return `<div class="gspPlayerRow" style="${locked?'opacity:.55;':''}"${note}><div class="gspColorLabel"><span class="gspDot ${c.key}"></span>${c.label}</div><input id="gspName${i}" value="${escapeHtml(getGspName(i))}" ${locked?'disabled':''} oninput="onGspNameInput()"></div>`;
     }).join('');
   }
-  renderGameStartSelfPlayerSelect();
   if (resetList || gspOrderMode === 'manual') {
     if (gspOrderMode === 'manual') renderGspManualOrderList();
     else renderGspAutoWaitingList();
@@ -8149,6 +8274,7 @@ function renderGspManualOrderList(){
       const moved = gspManualOrder.splice(gspDragIndex, 1)[0];
       gspManualOrder.splice(dropIndex, 0, moved);
       renderGspManualOrderList();
+      publishGameStartLobby({ manualOrder:gspManualOrder.slice(), names:gspNames.slice() });
     });
   });
 }
@@ -8462,6 +8588,7 @@ async function rollGameStartOrderPreview(){
   }
   results.sort((a,b)=> (b.total-a.total) || (a.playerIndex-b.playerIndex));
   gspAutoOrder = results.map(r => r.playerIndex);
+  publishGameStartLobby({ orderMode:'auto', autoOrder:gspAutoOrder.slice(), names:gspNames.slice() });
   const list=document.getElementById('gspOrderList');
   if(list) list.innerHTML = results.map((r,order)=>`<div class="autoOrderRow"><span>${order+1}. <span class="gspDot ${r.color}"></span> ${escapeHtml(r.name)}</span><span class="autoOrderDice">${r.d1}+${r.d2}=${r.total}</span></div>`).join('');
   if(total) total.textContent='順番が決まりました';
@@ -8489,7 +8616,7 @@ function previewGameStartConfirm(){
     if (mainInput) mainInput.value = playerNames[i];
   }
 
-  setGameStartSelfPlayerFromUI();
+  gspSelfPlayer = claimToIndex(getGspClaims());
   selfPlayerIndex = gspSelfPlayer >= 0 && gspSelfPlayer < activePlayerCount ? gspSelfPlayer : -1;
   localStorage.setItem("catanSelfPlayerIndex", String(selfPlayerIndex));
   const playerSelect = document.getElementById('playerSelect');
@@ -8510,8 +8637,11 @@ function previewGameStartConfirm(){
   updateDevCardUI();
   updateDiceButtonState();
   redraw();
-  closeGameStartSetupPreview();
+  closeGameStartSetupPreview(false);
   log('ゲーム開始設定を反映しました。順番：' + gameTurnOrder.map(p => getPlayerName(p)).join(' → ') + ' / あなた：' + (getSelfPlayer() >= 0 ? getPlayerName(getSelfPlayer()) : '未参加'));
+  const startedAt = Date.now();
+  gspLastStartedAt = startedAt;
+  publishGameStartLobby({ show:false, startedAt, claims:getGspClaims(), names:gspNames.slice(), count:gspCount, orderMode:gspOrderMode, manualOrder:gspManualOrder.slice(), autoOrder:gspAutoOrder });
   scheduleCloudAutoSave();
 }
 </script>
