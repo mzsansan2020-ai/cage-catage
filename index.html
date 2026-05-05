@@ -6370,7 +6370,7 @@ loadImages().then(generateBoard);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v151-realtime-sync",
+    version: "v153-realtime-sync-click-save",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6480,14 +6480,19 @@ let cloudAutoSaveTimer = null;
 let applyingCloudUpdate = false;
 let cloudRealtimeReady = false;
 
-// リアルタイム同期用：この端末で操作があった直後だけ自動保存する
+// リアルタイム同期用：この端末で操作があったあと、自動保存する
 window.__catanCloudLastUserActionAt = 0;
-document.addEventListener("click", () => {
+function markUserActionForCloudSave() {
+  if (applyingCloudUpdate) return;
   window.__catanCloudLastUserActionAt = Date.now();
-}, true);
-document.addEventListener("change", () => {
-  window.__catanCloudLastUserActionAt = Date.now();
-}, true);
+  // ボタン処理・盤面クリック処理が終わった後の状態を保存する
+  setTimeout(() => {
+    if (!applyingCloudUpdate) scheduleCloudAutoSave();
+  }, 250);
+}
+document.addEventListener("click", markUserActionForCloudSave, true);
+document.addEventListener("change", markUserActionForCloudSave, true);
+document.addEventListener("mouseup", markUserActionForCloudSave, true);
 
 function scheduleCloudAutoSave() {
   if (applyingCloudUpdate) return;
