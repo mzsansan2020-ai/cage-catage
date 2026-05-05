@@ -2151,6 +2151,20 @@ body {
         <div class="leftLogTitle">操作</div>
 
         <div class="leftControlsBox">
+
+        <details class="fold" open>
+          <summary>ルーム設定</summary>
+          <div class="foldBody">
+            <div class="playerSetupBox">
+              <label>ルームID：
+                <input id="roomIdInput" value="default" maxlength="30">
+              </label>
+              <button onclick="applyRoomFromUI()">ルームを反映</button>
+              <div id="roomStatus" class="tradeHint">現在のルーム：default</div>
+            </div>
+          </div>
+        </details>
+
         <details class="fold" open>
           <summary>初期プレイヤー設定</summary>
           <div class="foldBody">
@@ -6324,6 +6338,7 @@ function downloadPng() {
 }
 
 refreshPlayerSetupUI();
+refreshRoomUI();
 loadImages().then(generateBoard);
 </script>
 
@@ -6371,10 +6386,54 @@ loadImages().then(generateBoard);
 })();
 
 
+// ===== ルーム設定 =====
+let currentRoomId = localStorage.getItem("catanRoomId") || "default";
+
+function normalizeRoomId(value) {
+  const raw = String(value || "").trim();
+  const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  return safe || "default";
+}
+
+function refreshRoomUI() {
+  const input = document.getElementById("roomIdInput");
+  const status = document.getElementById("roomStatus");
+  if (input) input.value = currentRoomId;
+  if (status) status.textContent = "現在のルーム：" + currentRoomId;
+}
+
+async function applyRoomFromUI() {
+  const input = document.getElementById("roomIdInput");
+  const nextRoomId = normalizeRoomId(input ? input.value : currentRoomId);
+  currentRoomId = nextRoomId;
+  localStorage.setItem("catanRoomId", currentRoomId);
+  refreshRoomUI();
+
+  if (typeof window.firebaseSetRoom === "function") {
+    try {
+      await window.firebaseSetRoom(currentRoomId);
+      showToast("ルームを切り替えました");
+      log("ルームを切り替えました：" + currentRoomId);
+    } catch (error) {
+      console.error(error);
+      alert("ルーム切り替えに失敗しました。Firebaseの接続を確認してください。");
+    }
+  } else {
+    log("ルームIDを設定しました：" + currentRoomId);
+  }
+}
+
+window.getCurrentRoomId = function() {
+  return currentRoomId;
+};
+window.refreshRoomUI = refreshRoomUI;
+
+
+
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v154-realtime-sync-tab-client",
+    version: "v156-room-id",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6582,7 +6641,8 @@ async function loadBoardFromCloud() {
     useFetchStreams: false
   });
 
-  const boardRef = doc(db, "boards", "latest");
+  let boardRef = null;
+  let unsubscribeBoard = null;
 
   // リアルタイム同期用ID。localStorageだと同じPCの別ウィンドウが同一IDになり、
   // テスト時に相手画面の更新を無視してしまうため、タブごとに分けます。
@@ -6593,27 +6653,62 @@ async function loadBoardFromCloud() {
     sessionStorage.setItem(clientIdKey, clientId);
   }
 
+  function safeRoomId(roomId) {
+    return String(roomId || "default")
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "default";
+  }
+
+  function startRealtimeListener() {
+    if (unsubscribeBoard) unsubscribeBoard();
+    unsubscribeBoard = onSnapshot(boardRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data || data.updatedByClientId === clientId) return;
+      if (typeof window.applyRealtimeBoardData === "function") {
+        window.applyRealtimeBoardData(data);
+      }
+    }, (error) => {
+      console.error("Realtime sync failed", error);
+    });
+  }
+
+  async function setRoom(roomId, loadAfterSwitch = true) {
+    const safeId = safeRoomId(roomId);
+    boardRef = doc(db, "boards", safeId);
+    startRealtimeListener();
+
+    if (loadAfterSwitch) {
+      const snap = await getDoc(boardRef);
+      if (snap.exists() && typeof window.applyRealtimeBoardData === "function") {
+        window.applyRealtimeBoardData(snap.data());
+      }
+    }
+    return safeId;
+  }
+
+  window.firebaseSetRoom = async function(roomId) {
+    return await setRoom(roomId, true);
+  };
+
   window.firebaseSaveBoard = async function(data) {
-    await setDoc(boardRef, { ...data, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
+    if (!boardRef) await setRoom(typeof window.getCurrentRoomId === "function" ? window.getCurrentRoomId() : "default", false);
+    await setDoc(boardRef, { ...data, roomId: safeRoomId(typeof window.getCurrentRoomId === "function" ? window.getCurrentRoomId() : "default"), updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
   };
 
   window.firebaseLoadBoard = async function() {
+    if (!boardRef) await setRoom(typeof window.getCurrentRoomId === "function" ? window.getCurrentRoomId() : "default", false);
     const snap = await getDoc(boardRef);
     return snap.exists() ? snap.data() : null;
   };
 
-  onSnapshot(boardRef, (snap) => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (!data || data.updatedByClientId === clientId) return;
-    if (typeof window.applyRealtimeBoardData === "function") {
-      window.applyRealtimeBoardData(data);
-    }
-  }, (error) => {
-    console.error("Realtime sync failed", error);
+  const initialRoomId = typeof window.getCurrentRoomId === "function" ? window.getCurrentRoomId() : "default";
+  setRoom(initialRoomId, false).then(() => {
+    if (typeof window.refreshRoomUI === "function") window.refreshRoomUI();
+    console.log("Firebase connected", clientId, "room", initialRoomId);
   });
-
-  console.log("Firebase connected", clientId);
 </script>
 
 </body>
