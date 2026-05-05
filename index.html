@@ -7278,7 +7278,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v196-color-claim-release-fix",
+    version: "v197-color-claim-null-sync-fix",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -8038,7 +8038,7 @@ function renderRobberQueueWaiting(currentPlayer) {
   </div>
 </div>
 <script>
-/* v196: 色選択変更時に前の色を確実に解放する修正。 */
+/* v197: 色選択変更時の解放を全ブラウザへ確実に同期する修正。 */
 const GSP_COLORS = [
   { key:'red', label:'赤' },
   { key:'blue', label:'青' },
@@ -8065,6 +8065,14 @@ function getGspClientId(){
   return id;
 }
 function getGspClaims(){ return (gspLobby && gspLobby.claims) ? gspLobby.claims : {}; }
+function normalizeGspClaimsForSync(claims){
+  const src = claims || {};
+  const normalized = {};
+  GSP_COLORS.forEach(c => {
+    normalized[c.key] = src[c.key] || null;
+  });
+  return normalized;
+}
 
 function getGspLocalClaimKey(){
   try { return sessionStorage.getItem('catanGspClaimedColorKey') || ''; } catch(e) { return ''; }
@@ -8082,7 +8090,7 @@ function claimToIndex(claims){
   return -1;
 }
 function buildGspLobbyPatch(extra){
-  return Object.assign({
+  const patch = Object.assign({
     show: true,
     count: gspCount,
     names: gspNames.slice(),
@@ -8090,9 +8098,13 @@ function buildGspLobbyPatch(extra){
     manualOrder: gspManualOrder.slice(),
     autoOrder: Array.isArray(gspAutoOrder) ? gspAutoOrder.slice() : null,
     autoResults: Array.isArray(gspAutoResults) ? gspAutoResults.slice() : [],
-    claims: Object.assign({}, getGspClaims()),
+    claims: normalizeGspClaimsForSync(getGspClaims()),
     updatedAt: Date.now()
   }, extra || {});
+  // Firestore の merge は map 内の削除キーを残すことがあるため、
+  // 未使用色も null として明示的に送って全ブラウザで解放状態を同期する。
+  patch.claims = normalizeGspClaimsForSync(patch.claims);
+  return patch;
 }
 async function publishGameStartLobby(extra){
   const patch = buildGspLobbyPatch(extra);
@@ -8113,7 +8125,7 @@ function applyLocalSelfFromGspClaims(claims){
 }
 function handleRealtimeGameStartLobby(lobby){
   if (!lobby) return;
-  gspLobby = Object.assign({}, gspLobby || {}, lobby || {}, { claims: Object.assign({}, (lobby && lobby.claims) || {}) });
+  gspLobby = Object.assign({}, gspLobby || {}, lobby || {}, { claims: normalizeGspClaimsForSync((lobby && lobby.claims) || {}) });
   if (Array.isArray(lobby.names)) gspNames = lobby.names.slice(0,4).concat(['赤','青','緑','黄']).slice(0,4);
   if (lobby.count) gspCount = Math.max(2, Math.min(4, Number(lobby.count)||2));
   if (lobby.orderMode) gspOrderMode = lobby.orderMode === 'auto' ? 'auto' : 'manual';
