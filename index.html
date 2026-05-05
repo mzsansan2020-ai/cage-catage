@@ -2169,9 +2169,16 @@ body {
   font-weight:900;
   cursor:pointer;
   line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+  text-align:center;
+  vertical-align:middle;
+  font-family:inherit;
 }
 .robberCounterRow button:hover { background:#e9ecef; }
-.robberCountValue { min-width:28px; font-size:20px; font-weight:900; }
+.robberCountValue { min-width:28px; font-size:20px; font-weight:900; text-align:center; line-height:28px; }
 .robberFakeSlider {
   height:6px;
   border-radius:999px;
@@ -2239,6 +2246,10 @@ body {
 .robberQueueIcon.red { background:#e53935; }
 .robberQueueIcon.blue { background:#1e88e5; }
 .robberQueueIcon.gray { background:#bbb; }
+.robberModal.actualLocked .robberModalClose { display:none; }
+.robberQueueIcon.green { background:#43a047; }
+.robberQueueIcon.yellow { background:#ffca28; }
+
 .robberModal.waiting .robberActiveContent { display:none; }
 .robberModal.waiting .robberWaitingBox { display:block; }
 .robberPreviewButton {
@@ -3590,41 +3601,8 @@ function enterRobberModeAfterSeven() {
 }
 
 function buildSevenDiscardPanelHTML(player) {
-  if (!sevenDiscardActive) return '';
-  const current = sevenDiscardQueue[sevenDiscardIndex];
-  if (player !== current) return '';
-
-  const total = getTotalResourceCount(player);
-  const need = Math.floor(total / 2);
-  const r = resources[player];
-  // v105: 捨てる資源UIはプレイヤーカードと同じ順番・名前で表示する（木・麦・鉄・レンガ・羊）。
-  const types = ['forest', 'wheat', 'ore', 'brick', 'sheep'];
-  const discardResourceName = {
-    forest: '木',
-    wheat: '麦',
-    ore: '鉄',
-    brick: 'レンガ',
-    sheep: '羊'
-  };
-
-  let html = '<div class="sevenDiscardCardPanel">';
-  html += '<b>7処理：' + playerNames[player] + ' は ' + need + ' 枚捨てる</b>';
-  html += '<div style="margin-top:4px;">現在 ' + total + ' 枚。捨てる枚数を選んでください。</div>';
-  html += '<div class="discardGrid">';
-
-  types.forEach(type => {
-    html += '<label>' + discardResourceName[type] + '<br><select id="discard_' + type + '" onchange="updateSevenDiscardSelectionInfo()">';
-    for (let i = 0; i <= r[type]; i++) {
-      html += '<option value="' + i + '">' + i + '</option>';
-    }
-    html += '</select></label>';
-  });
-
-  html += '</div>';
-  html += '<div id="discardSelectionInfo" style="margin-top:6px;">選択中：0 / ' + need + '</div>';
-  html += '<button onclick="confirmSevenDiscard()">選択した資源を捨てる</button>';
-  html += '</div>';
-  return html;
+  // v167: 7処理は中央モーダルUIで行うため、プレイヤーカード横の旧UIは出さない。
+  return '';
 }
 
 function updateSevenDiscardUI() {
@@ -3634,14 +3612,22 @@ function updateSevenDiscardUI() {
       panel.innerHTML = '';
     } else {
       const player = sevenDiscardQueue[sevenDiscardIndex];
-      panel.innerHTML = player === undefined ? '' : '<span>7処理中：' + playerNames[player] + 'のプレイヤーカード右側で捨てる資源を選んでください。</span>';
+      panel.innerHTML = player === undefined ? '' : '<span>盗賊処理中：' + playerNames[player] + 'の処理を待っています。</span>';
     }
+  }
+
+  if (typeof syncRobberDiscardModalFromState === 'function') {
+    syncRobberDiscardModalFromState();
   }
 
   updatePlayerCardsUI();
 }
 
 function getSevenDiscardSelection() {
+  if (typeof getRobberActualSelection === 'function') {
+    const actual = getRobberActualSelection();
+    if (actual) return actual;
+  }
   const result = { forest:0, sheep:0, wheat:0, brick:0, ore:0 };
   Object.keys(result).forEach(type => {
     const el = document.getElementById('discard_' + type);
@@ -6924,53 +6910,99 @@ async function loadBoardFromCloud() {
 
 <script>
 
-// ===== v164: 盗賊7処理 新UIプレビュー（見た目確認用。既存処理には未接続） =====
+// ===== v167: 盗賊7処理 新UI（プレビュー兼・実処理接続） =====
 const robberPreviewHoldings = { forest: 5, wheat: 4, ore: 3, brick: 6, sheep: 7 };
 let robberPreviewSelectedCounts = { forest: 0, wheat: 0, ore: 0, brick: 0, sheep: 0 };
-function getRobberPreviewThemeColor() {
-  const p = typeof getCurrentPlayer === 'function' ? getCurrentPlayer() : 0;
+let robberModalMode = 'preview'; // preview / actual
+
+function getRobberThemeForPlayer(player) {
   const themes = [
     { color: '#c62828', dark: '#8e0000', piece: '#e53935', name: '赤' },
     { color: '#1565c0', dark: '#003c8f', piece: '#1e88e5', name: '青' },
     { color: '#2e7d32', dark: '#005005', piece: '#43a047', name: '緑' },
     { color: '#e0a800', dark: '#a87800', piece: '#ffca28', name: '黄' }
   ];
-  return themes[p] || themes[0];
+  const idx = Number(player) || 0;
+  const base = themes[idx] || themes[0];
+  const name = (typeof getPlayerName === 'function') ? getPlayerName(idx) : base.name;
+  return { ...base, name };
+}
+function getRobberPreviewThemeColor() {
+  const p = typeof getCurrentPlayer === 'function' ? getCurrentPlayer() : 0;
+  return getRobberThemeForPlayer(p);
+}
+function setRobberModalTheme(player) {
+  const modal = document.getElementById('robberPreviewModal');
+  if (!modal) return getRobberThemeForPlayer(player);
+  const theme = getRobberThemeForPlayer(player);
+  modal.style.setProperty('--robber-color', theme.color);
+  modal.style.setProperty('--robber-dark', theme.dark);
+  modal.style.setProperty('--robber-piece', theme.piece);
+  return theme;
 }
 function showRobberUiPreview(waiting) {
+  robberModalMode = 'preview';
   const backdrop = document.getElementById('robberPreviewBackdrop');
   const modal = document.getElementById('robberPreviewModal');
   if (!backdrop || !modal) return;
   const theme = getRobberPreviewThemeColor();
-  modal.style.setProperty('--robber-color', theme.color);
-  modal.style.setProperty('--robber-dark', theme.dark);
-  modal.style.setProperty('--robber-piece', theme.piece);
+  setRobberModalTheme(typeof getCurrentPlayer === 'function' ? getCurrentPlayer() : 0);
   modal.classList.toggle('waiting', !!waiting);
+  modal.classList.remove('actualLocked');
   const total = Object.values(robberPreviewHoldings).reduce((a,b)=>a+b,0);
   const need = Math.floor(total / 2);
   const alert = document.getElementById('robberPreviewAlert');
+  const instruction = document.getElementById('robberPreviewInstruction');
+  const badge = document.getElementById('robberPreviewBadge');
   if (alert) alert.textContent = theme.name + 'のプレイヤーは資源を' + need + '枚捨ててください。';
+  if (instruction) instruction.textContent = 'あなたの番です。資源を' + need + '枚捨ててください。';
+  if (badge) badge.textContent = '1 / 2人目';
   robberPreviewSelectedCounts = { forest: 0, wheat: 0, ore: 0, brick: 0, sheep: 0 };
   updateRobberPreviewUi();
   backdrop.classList.add('show');
   backdrop.setAttribute('aria-hidden', 'false');
 }
 function hideRobberUiPreview() {
+  if (robberModalMode === 'actual' && sevenDiscardActive) return;
   const backdrop = document.getElementById('robberPreviewBackdrop');
   if (!backdrop) return;
   backdrop.classList.remove('show');
   backdrop.setAttribute('aria-hidden', 'true');
 }
+function getRobberCurrentHoldings() {
+  if (robberModalMode === 'actual' && sevenDiscardActive) {
+    const player = sevenDiscardQueue[sevenDiscardIndex];
+    const r = resources[player] || {};
+    return { forest:r.forest||0, wheat:r.wheat||0, ore:r.ore||0, brick:r.brick||0, sheep:r.sheep||0 };
+  }
+  return robberPreviewHoldings;
+}
 function changeRobberPreviewCount(type, delta) {
   if (!(type in robberPreviewSelectedCounts)) return;
-  const max = robberPreviewHoldings[type] || 0;
+  if (robberModalMode === 'actual' && sevenDiscardActive) {
+    const player = sevenDiscardQueue[sevenDiscardIndex];
+    if (typeof getSelfPlayer === 'function' && getSelfPlayer() !== player) return;
+  }
+  const holdings = getRobberCurrentHoldings();
+  const max = holdings[type] || 0;
   const next = Math.max(0, Math.min(max, robberPreviewSelectedCounts[type] + delta));
   robberPreviewSelectedCounts[type] = next;
   updateRobberPreviewUi();
 }
+function getRobberActualSelection() {
+  if (robberModalMode !== 'actual') return null;
+  return {
+    forest: robberPreviewSelectedCounts.forest || 0,
+    sheep: robberPreviewSelectedCounts.sheep || 0,
+    wheat: robberPreviewSelectedCounts.wheat || 0,
+    brick: robberPreviewSelectedCounts.brick || 0,
+    ore: robberPreviewSelectedCounts.ore || 0
+  };
+}
 function updateRobberPreviewUi() {
   const types = ['forest','wheat','ore','brick','sheep'];
-  const total = Object.values(robberPreviewHoldings).reduce((a,b)=>a+b,0);
+  const holdings = getRobberCurrentHoldings();
+  const total = Object.values(holdings).reduce((a,b)=>a+b,0);
   const need = Math.floor(total / 2);
   const selected = Object.values(robberPreviewSelectedCounts).reduce((a,b)=>a+b,0);
   const totalEl = document.getElementById('robberPreviewTotal');
@@ -6987,20 +7019,72 @@ function updateRobberPreviewUi() {
   const pct = need > 0 ? Math.min(100, Math.round((selected / need) * 100)) : 0;
   if (overallBar) overallBar.style.width = pct + '%';
   if (percentEl) percentEl.textContent = pct + '%';
-  if (confirm) confirm.disabled = selected !== need;
+  if (confirm) {
+    const activePlayer = sevenDiscardActive ? sevenDiscardQueue[sevenDiscardIndex] : null;
+    const isActualOther = robberModalMode === 'actual' && typeof getSelfPlayer === 'function' && getSelfPlayer() !== activePlayer;
+    confirm.disabled = selected !== need || isActualOther;
+    confirm.onclick = robberModalMode === 'actual' ? confirmSevenDiscard : null;
+  }
   types.forEach(type => {
     const countEl = document.getElementById('robberPreviewCount_' + type);
     const ownEl = document.getElementById('robberPreviewOwn_' + type);
     const barEl = document.getElementById('robberPreviewBar_' + type);
     if (countEl) countEl.textContent = robberPreviewSelectedCounts[type];
-    if (ownEl) ownEl.textContent = robberPreviewHoldings[type] || 0;
+    if (ownEl) ownEl.textContent = holdings[type] || 0;
     if (barEl) {
-      const max = robberPreviewHoldings[type] || 1;
+      const max = holdings[type] || 1;
       barEl.style.width = Math.round((robberPreviewSelectedCounts[type] / max) * 100) + '%';
     }
   });
 }
-
+function resetRobberSelectionForActualPlayer(player) {
+  robberPreviewSelectedCounts = { forest: 0, wheat: 0, ore: 0, brick: 0, sheep: 0 };
+  window.robberActualSelectionPlayer = player;
+}
+function syncRobberDiscardModalFromState() {
+  const backdrop = document.getElementById('robberPreviewBackdrop');
+  const modal = document.getElementById('robberPreviewModal');
+  if (!backdrop || !modal) return;
+  if (!sevenDiscardActive || !Array.isArray(sevenDiscardQueue) || sevenDiscardQueue.length === 0) {
+    if (robberModalMode === 'actual') {
+      backdrop.classList.remove('show');
+      backdrop.setAttribute('aria-hidden', 'true');
+    }
+    return;
+  }
+  robberModalMode = 'actual';
+  const player = sevenDiscardQueue[sevenDiscardIndex];
+  if (window.robberActualSelectionPlayer !== player) resetRobberSelectionForActualPlayer(player);
+  const isSelf = typeof getSelfPlayer === 'function' ? getSelfPlayer() === player : true;
+  const theme = setRobberModalTheme(player);
+  const totalTargets = sevenDiscardQueue.length;
+  const need = Math.floor(getTotalResourceCount(player) / 2);
+  modal.classList.toggle('waiting', !isSelf);
+  modal.classList.add('actualLocked');
+  const badge = document.getElementById('robberPreviewBadge');
+  const alert = document.getElementById('robberPreviewAlert');
+  const instruction = document.getElementById('robberPreviewInstruction');
+  const waitingText = document.getElementById('robberPreviewWaitingText');
+  if (badge) badge.textContent = (sevenDiscardIndex + 1) + ' / ' + totalTargets + '人目';
+  if (alert) alert.textContent = theme.name + 'のプレイヤーは資源を' + need + '枚捨ててください。';
+  if (instruction) instruction.textContent = 'あなたの番です。資源を' + need + '枚捨ててください。';
+  if (waitingText) waitingText.textContent = theme.name + 'のプレイヤーの処理を待っています。';
+  renderRobberQueueWaiting(player);
+  updateRobberPreviewUi();
+  backdrop.classList.add('show');
+  backdrop.setAttribute('aria-hidden', 'false');
+}
+function renderRobberQueueWaiting(currentPlayer) {
+  const row = document.getElementById('robberPreviewQueueRow');
+  if (!row) return;
+  const colorClasses = ['red','blue','green','yellow'];
+  const html = sevenDiscardQueue.map((p, idx) => {
+    const label = idx < sevenDiscardIndex ? '完了' : (idx === sevenDiscardIndex ? '処理中' : '待機中');
+    const theme = getRobberThemeForPlayer(p);
+    return '<div class="robberQueuePlayer"><span class="robberQueueIcon ' + (colorClasses[p] || 'gray') + '"></span><span>' + escapeHtml(theme.name) + '<br>（' + label + '）</span></div>';
+  }).join('<span>→</span>') + '<span>→</span><div class="robberQueuePlayer"><span class="robberQueueIcon gray"></span><span>盗賊の移動へ</span></div>';
+  row.innerHTML = html;
+}
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -7170,7 +7254,7 @@ function updateRobberPreviewUi() {
       <div class="robberModalBody">
         <div class="robberActiveContent">
           <div class="robberAlertLine" id="robberPreviewAlert">赤のプレイヤーの処理中です</div>
-          <div class="robberInstructionLine">あなたの番です。資源を12枚捨ててください。</div>
+          <div class="robberInstructionLine" id="robberPreviewInstruction">あなたの番です。資源を12枚捨ててください。</div>
           <div class="robberSelectionHeader">
             <span>捨てる資源を選択</span>
             <span>捨てる枚数：<b id="robberPreviewNeed">12</b>枚</span>
@@ -7198,8 +7282,8 @@ function updateRobberPreviewUi() {
         </div>
         <div class="robberWaitingBox">
           <div class="robberWaitingTitle">盗賊が現れた！！</div>
-          <div class="robberWaitingText">他のプレイヤーの処理を待っています。</div>
-          <div class="robberQueueRow">
+          <div class="robberWaitingText" id="robberPreviewWaitingText">他のプレイヤーの処理を待っています。</div>
+          <div class="robberQueueRow" id="robberPreviewQueueRow">
             <div class="robberQueuePlayer"><span class="robberQueueIcon red"></span><span>赤<br>（処理中）</span></div>
             <span>→</span>
             <div class="robberQueuePlayer"><span class="robberQueueIcon blue"></span><span>青<br>（待機中）</span></div>
