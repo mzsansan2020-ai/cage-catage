@@ -2815,6 +2815,7 @@ let sevenDiscardActive = false;
 let sevenDiscardQueue = [];
 let sevenDiscardIndex = 0;
 let currentPhase = "dice";
+let hasRolledDice = false;
 let yearOfPlentySelectionActive = false;
 let monopolySelectionActive = false;
 let roadBuildingActive = false;
@@ -2951,6 +2952,8 @@ function saveUndoState() {
     sevenDiscardActive,
     sevenDiscardQueue: clone(sevenDiscardQueue),
     sevenDiscardIndex,
+    currentPhase,
+    hasRolledDice,
     yearOfPlentySelectionActive,
     monopolySelectionActive,
     roadBuildingActive,
@@ -2992,6 +2995,8 @@ function undoOnce() {
   sevenDiscardActive = !!lastState.sevenDiscardActive;
   sevenDiscardQueue = clone(lastState.sevenDiscardQueue || []);
   sevenDiscardIndex = lastState.sevenDiscardIndex || 0;
+  currentPhase = lastState.currentPhase || currentPhase || "dice";
+  hasRolledDice = !!lastState.hasRolledDice;
   yearOfPlentySelectionActive = !!lastState.yearOfPlentySelectionActive;
   monopolySelectionActive = !!lastState.monopolySelectionActive;
   roadBuildingActive = !!lastState.roadBuildingActive;
@@ -4326,7 +4331,18 @@ function getCurrentPhaseText() {
 
 function setGamePhase(phase, shouldRedraw = true) {
   currentPhase = phase || "dice";
+  updateDiceButtonState();
   if (shouldRedraw) redraw();
+}
+
+function updateDiceButtonState() {
+  const btn = document.getElementById("boardDiceButton");
+  if (!btn) return;
+  const locked = !!hasRolledDice || (typeof isRobberProcessActive === "function" && isRobberProcessActive());
+  btn.disabled = locked;
+  btn.style.opacity = locked ? "0.55" : "1";
+  btn.style.cursor = locked ? "not-allowed" : "pointer";
+  btn.title = hasRolledDice ? "このターンではすでにダイスを振っています" : "";
 }
 
 function drawPhaseBanner() {
@@ -4385,6 +4401,8 @@ function nextTurn() {
   updatePortTradeUI(false);
   updateDevCardUI();
   currentPhase = "dice";
+  hasRolledDice = false;
+  updateDiceButtonState();
   redraw();
   log("ターン変更：" + getPlayerName(next) + "のターンです。");
 }
@@ -4532,6 +4550,7 @@ function redraw() {
   drawDicePanel();
   drawToastMessage();
   drawVictoryBanner();
+  updateDiceButtonState();
 
   // ユーザー操作後の描画だけをFirestoreへ自動保存する
   // 初回表示や他端末からの反映では保存しないので、別画面を勝手に上書きしません。
@@ -4580,6 +4599,8 @@ function generateBoard() {
   lastDiceText = "";
   highlightedDiceTiles = [];
   currentPhase = "dice";
+  hasRolledDice = false;
+  updateDiceButtonState();
   document.getElementById("diceResult").textContent = "まだ振っていません";
   clearLog();
   log("新しい盤面を作成しました。");
@@ -4599,6 +4620,8 @@ function resetPieces() {
   roadBuildingActive = false;
   roadBuildingRoadsLeft = 0;
   currentPhase = "dice";
+  hasRolledDice = false;
+  updateDiceButtonState();
   updateSevenDiscardUI();
   log("建物・道・資源をリセットしました。");
   redraw();
@@ -4829,11 +4852,20 @@ function isRobberProcessActive() {
 function rollDice() {
   if (isRobberProcessActive()) {
     log("盗賊処理が完了するまでダイスは振れません。盗賊を移動し、必要なら相手を選んで「資源を奪う」を押してください。");
+    updateDiceButtonState();
+    return;
+  }
+
+  if (hasRolledDice) {
+    log("このターンではすでにダイスを振っています。");
+    updateDiceButtonState();
     return;
   }
 
   saveUndoState();
   setLastAction("dice");
+  hasRolledDice = true;
+  updateDiceButtonState();
 
   const d1 = Math.floor(Math.random() * 6) + 1;
   const d2 = Math.floor(Math.random() * 6) + 1;
@@ -4848,6 +4880,7 @@ function rollDice() {
 
   if (total === 7) {
     currentPhase = "robber";
+    updateDiceButtonState();
     startSevenDiscardProcess();
     redraw();
     return;
@@ -4884,6 +4917,7 @@ function rollDice() {
   if (!any) log(total + "の資源獲得はありません。");
 
   currentPhase = "build";
+  updateDiceButtonState();
   updateResourceTable();
   updateVictoryTable();
   updatePlayerCardsUI();
@@ -6792,7 +6826,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v163-room-presence-visible",
+    version: "v170-dice-once-per-turn",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6825,6 +6859,7 @@ function getBoardSaveData() {
     sevenDiscardQueue: clone(sevenDiscardQueue || []),
     sevenDiscardIndex,
     currentPhase,
+    hasRolledDice,
     yearOfPlentySelectionActive,
     monopolySelectionActive,
     roadBuildingActive,
@@ -6873,6 +6908,7 @@ function applyBoardSaveData(data) {
   sevenDiscardQueue = clone(data.sevenDiscardQueue || []);
   sevenDiscardIndex = data.sevenDiscardIndex || 0;
   currentPhase = data.currentPhase || (sevenDiscardActive || robberMode || pendingRobberSteal ? "robber" : (lastDiceTotal ? "build" : "dice"));
+  hasRolledDice = data.hasRolledDice !== undefined ? !!data.hasRolledDice : !!lastDiceTotal;
   yearOfPlentySelectionActive = !!data.yearOfPlentySelectionActive;
   monopolySelectionActive = !!data.monopolySelectionActive;
   roadBuildingActive = !!data.roadBuildingActive;
