@@ -2114,8 +2114,6 @@ body {
       <div class="leftRandomTop categoryGroup">
         <div class="categoryTitle">ランダム配置</div>
         <button class="primary" onclick="generateBoard()">ランダム配置</button>
-        <button onclick="saveBoardToCloud()">盤面保存</button>
-        <button onclick="loadBoardFromCloud()">盤面読込</button>
       </div>
 
       <div class="leftLogPanel">
@@ -2350,6 +2348,14 @@ body {
         <div class="categoryGroup">
           <div class="categoryTitle">次のターン</div>
           <button onclick="nextTurn()">次のターン</button>
+        </div>
+        <div class="categoryGroup">
+          <div class="categoryTitle">保存</div>
+          <button onclick="saveBoardToCloud()">盤面保存</button>
+        </div>
+        <div class="categoryGroup">
+          <div class="categoryTitle">読込</div>
+          <button onclick="loadBoardFromCloud()">盤面読込</button>
         </div>
       </div>
       <div id="boardDiceButtonWrap" class="boardDiceButtonWrap">
