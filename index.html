@@ -2152,6 +2152,19 @@ body {
 
         <div class="leftControlsBox">
         <details class="fold" open>
+          <summary>ルーム設定</summary>
+          <div class="foldBody">
+            <div class="playerSetupBox">
+              <label>ルームID：
+                <input id="roomIdInput" type="text" value="1" style="width:120px;">
+              </label>
+              <button onclick="applyRoomFromUI()">ルームを反映</button>
+              <div id="currentRoomDisplay" style="font-size:12px;margin-top:8px;color:#555;">現在のルーム：1</div>
+            </div>
+          </div>
+        </details>
+
+        <details class="fold" open>
           <summary>初期プレイヤー設定</summary>
           <div class="foldBody">
             <div class="playerSetupBox">
@@ -6371,10 +6384,57 @@ loadImages().then(generateBoard);
 })();
 
 
+// ===== ルーム設定 =====
+let currentRoomId = localStorage.getItem("catanCurrentRoomId") || "1";
+
+function normalizeRoomId(value) {
+  const raw = String(value || "").trim();
+  // FirestoreのドキュメントIDとして危ない文字だけ安全な文字へ置換。数字・英字・日本語はそのまま使えます。
+  return (raw || "1").replace(/[\/\\#?\[\]]/g, "_").slice(0, 60) || "1";
+}
+
+function refreshRoomUI() {
+  const input = document.getElementById("roomIdInput");
+  const display = document.getElementById("currentRoomDisplay");
+  if (input) input.value = currentRoomId;
+  if (display) display.textContent = "現在のルーム：" + currentRoomId;
+}
+
+async function applyRoomFromUI() {
+  const input = document.getElementById("roomIdInput");
+  const nextRoomId = normalizeRoomId(input ? input.value : currentRoomId);
+  if (input) input.value = nextRoomId;
+
+  if (typeof window.firebaseSwitchRoom !== "function") {
+    currentRoomId = nextRoomId;
+    localStorage.setItem("catanCurrentRoomId", currentRoomId);
+    refreshRoomUI();
+    showToast("ルームを切り替えました：" + currentRoomId);
+    log("ルームを切り替えました：" + currentRoomId);
+    return;
+  }
+
+  try {
+    await window.firebaseSwitchRoom(nextRoomId, getBoardSaveData());
+    currentRoomId = nextRoomId;
+    localStorage.setItem("catanCurrentRoomId", currentRoomId);
+    refreshRoomUI();
+    showToast("ルームを切り替えました：" + currentRoomId);
+    log("ルームを切り替えました：" + currentRoomId);
+  } catch (error) {
+    console.error(error);
+    refreshRoomUI();
+    alert("ルーム切り替えに失敗しました。少し待ってからもう一度試してください。");
+  }
+}
+
+window.addEventListener("load", refreshRoomUI);
+
+
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v154-realtime-sync-tab-client",
+    version: "v160-room-light-safe",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6582,10 +6642,6 @@ async function loadBoardFromCloud() {
     useFetchStreams: false
   });
 
-  const boardRef = doc(db, "boards", "latest");
-
-  // リアルタイム同期用ID。localStorageだと同じPCの別ウィンドウが同一IDになり、
-  // テスト時に相手画面の更新を無視してしまうため、タブごとに分けます。
   const clientIdKey = "catanFirebaseTabClientId";
   let clientId = sessionStorage.getItem(clientIdKey);
   if (!clientId) {
@@ -6593,8 +6649,33 @@ async function loadBoardFromCloud() {
     sessionStorage.setItem(clientIdKey, clientId);
   }
 
+  function normalizeRoomIdForFirebase(value) {
+    const raw = String(value || "").trim();
+    return (raw || "1").replace(/[\/\\#?\[\]]/g, "_").slice(0, 60) || "1";
+  }
+
+  let currentRoomIdForFirebase = normalizeRoomIdForFirebase(localStorage.getItem("catanCurrentRoomId") || window.currentRoomId || "1");
+  let boardRef = doc(db, "rooms", currentRoomIdForFirebase);
+  let unsubscribeRealtime = null;
+  let switchingRoom = false;
+
+  function startRealtimeListener() {
+    if (typeof unsubscribeRealtime === "function") unsubscribeRealtime();
+    unsubscribeRealtime = onSnapshot(boardRef, (snap) => {
+      if (switchingRoom) return;
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data || data.updatedByClientId === clientId) return;
+      if (typeof window.applyRealtimeBoardData === "function") {
+        window.applyRealtimeBoardData(data);
+      }
+    }, (error) => {
+      console.error("Realtime sync failed", error);
+    });
+  }
+
   window.firebaseSaveBoard = async function(data) {
-    await setDoc(boardRef, { ...data, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
+    await setDoc(boardRef, { ...data, roomId: currentRoomIdForFirebase, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
   };
 
   window.firebaseLoadBoard = async function() {
@@ -6602,18 +6683,33 @@ async function loadBoardFromCloud() {
     return snap.exists() ? snap.data() : null;
   };
 
-  onSnapshot(boardRef, (snap) => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (!data || data.updatedByClientId === clientId) return;
-    if (typeof window.applyRealtimeBoardData === "function") {
-      window.applyRealtimeBoardData(data);
-    }
-  }, (error) => {
-    console.error("Realtime sync failed", error);
-  });
+  window.firebaseSwitchRoom = async function(roomId, fallbackData) {
+    const nextRoomId = normalizeRoomIdForFirebase(roomId);
+    switchingRoom = true;
+    try {
+      currentRoomIdForFirebase = nextRoomId;
+      localStorage.setItem("catanCurrentRoomId", nextRoomId);
+      boardRef = doc(db, "rooms", currentRoomIdForFirebase);
 
-  console.log("Firebase connected", clientId);
+      const snap = await getDoc(boardRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && typeof window.applyRealtimeBoardData === "function") {
+          window.applyRealtimeBoardData(data);
+        }
+      } else if (fallbackData) {
+        // 新規ルームは今の盤面を初期状態として置く。画面は消さない。
+        await setDoc(boardRef, { ...fallbackData, roomId: currentRoomIdForFirebase, updatedByClientId: clientId, cloudUpdatedAt: Date.now() }, { merge: true });
+      }
+    } finally {
+      switchingRoom = false;
+      startRealtimeListener();
+    }
+  };
+
+  // 起動時は保存済みルームをそのまま監視。手動の「盤面読込」も従来通り使えます。
+  startRealtimeListener();
+  console.log("Firebase connected", clientId, "room", currentRoomIdForFirebase);
 </script>
 
 </body>
