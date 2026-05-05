@@ -2152,10 +2152,9 @@ body {
 
         <div class="leftControlsBox">
         <details class="fold" open>
-          <summary>基本操作</summary>
+          <summary>初期プレイヤー設定</summary>
           <div class="foldBody">
             <div class="playerSetupBox">
-              <b>初期プレイヤー設定</b>
               <label>人数：
                 <select id="playerCountSelect" onchange="applyPlayerSettingsFromUI()">
                   <option value="2">2人</option>
@@ -2169,7 +2168,12 @@ body {
               </label>
               <button onclick="applyPlayerSettingsFromUI()">プレイヤー設定を反映</button>
             </div>
+          </div>
+        </details>
 
+        <details class="fold" open>
+          <summary>基本操作</summary>
+          <div class="foldBody">
             <div id="turnDisplay" class="turnDisplay">現在のターン：赤</div>
 
             <label>プレイヤー：
