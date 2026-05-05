@@ -287,7 +287,38 @@
     border-radius:10px;
   }
   .pcName {
-    display:none;
+    position:absolute;
+    top:14px;
+    left:18px;
+    width:150px;
+    color:#fff;
+    font-weight:900;
+    font-size:18px;
+    line-height:1.1;
+    text-shadow:0 2px 4px rgba(0,0,0,.75);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    pointer-events:none;
+  }
+  .playerSetupBox {
+    display:grid;
+    gap:6px;
+    margin:6px 0 10px;
+    padding:8px;
+    border:1px solid rgba(0,0,0,.18);
+    border-radius:8px;
+    background:rgba(255,255,255,.72);
+  }
+  .playerSetupRow {
+    display:grid;
+    grid-template-columns:44px 1fr;
+    gap:6px;
+    align-items:center;
+  }
+  .playerSetupRow input {
+    width:100%;
+    box-sizing:border-box;
   }
   .pcValues {
   position:absolute;
@@ -2123,6 +2154,22 @@ body {
         <details class="fold" open>
           <summary>基本操作</summary>
           <div class="foldBody">
+            <div class="playerSetupBox">
+              <b>初期プレイヤー設定</b>
+              <label>人数：
+                <select id="playerCountSelect" onchange="applyPlayerSettingsFromUI()">
+                  <option value="2">2人</option>
+                  <option value="3">3人</option>
+                  <option value="4" selected>4人</option>
+                </select>
+              </label>
+              <div id="playerNameInputs"></div>
+              <label>あなた：
+                <select id="selfPlayerSelect" onchange="setSelfPlayerFromUI()"></select>
+              </label>
+              <button onclick="applyPlayerSettingsFromUI()">プレイヤー設定を反映</button>
+            </div>
+
             <div id="turnDisplay" class="turnDisplay">現在のターン：赤</div>
 
             <label>プレイヤー：
@@ -2261,7 +2308,7 @@ body {
           <summary>発展カード</summary>
           <div class="foldBody">
             <div class="tradeBox">
-              <button onclick="buyDevCard()">発展カード購入</button>
+              <button id="buyDevCardButton" onclick="buyDevCard()">発展カード購入</button>
               <button id="useKnightButton" onclick="useKnightCard()" disabled>騎士を使う</button>
               <button id="useYearOfPlentyButton" onclick="startYearOfPlentySelection()" disabled>発見を使う</button>
               <button id="useRoadBuildingButton" onclick="useRoadBuildingCard()" disabled>街道建設を使う</button>
@@ -2393,7 +2440,10 @@ const resourceName = {
   desert: "砂漠"
 };
 
-const playerNames = ["赤", "青", "緑", "黄"];
+const defaultPlayerNames = ["赤", "青", "緑", "黄"];
+let playerNames = ["赤", "青", "緑", "黄"];
+let activePlayerCount = 4;
+let selfPlayerIndex = Number(localStorage.getItem("catanSelfPlayerIndex") || "0");
 const playerColors = ["#d93025", "#1a73e8", "#2eae3f", "#f4c20d"];
 const playerStroke = ["#7a120c", "#0b3d91", "#16651f", "#9b7a00"];
 
@@ -2451,6 +2501,100 @@ let roadBuildingRoadsLeft = 0;
 
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function activePlayerIndices() {
+  return Array.from({ length: activePlayerCount }, (_, i) => i);
+}
+
+function getPlayerName(player) {
+  return playerNames[player] || defaultPlayerNames[player] || ("プレイヤー" + (player + 1));
+}
+
+function getSelfPlayer() {
+  if (Number.isNaN(selfPlayerIndex)) selfPlayerIndex = 0;
+  if (selfPlayerIndex < 0) selfPlayerIndex = 0;
+  if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
+  return selfPlayerIndex;
+}
+
+function renderPlayerNameInputs() {
+  const wrap = document.getElementById("playerNameInputs");
+  if (!wrap) return;
+  let html = "";
+  for (let i = 0; i < activePlayerCount; i++) {
+    html += `<div class="playerSetupRow"><span>${defaultPlayerNames[i]}</span><input id="playerNameInput${i}" value="${escapeHtml(getPlayerName(i))}" maxlength="10"></div>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function refreshPlayerSelectOptions() {
+  const select = document.getElementById("playerSelect");
+  if (select) {
+    const current = Math.min(Number(select.value || 0), activePlayerCount - 1);
+    select.innerHTML = activePlayerIndices().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
+    select.value = String(current);
+  }
+  const selfSelect = document.getElementById("selfPlayerSelect");
+  if (selfSelect) {
+    const self = getSelfPlayer();
+    selfSelect.innerHTML = activePlayerIndices().map(i => `<option value="${i}">${escapeHtml(getPlayerName(i))}</option>`).join("");
+    selfSelect.value = String(self);
+  }
+}
+
+function refreshPlayerSetupUI() {
+  const countSelect = document.getElementById("playerCountSelect");
+  if (countSelect) countSelect.value = String(activePlayerCount);
+  renderPlayerNameInputs();
+  refreshPlayerSelectOptions();
+}
+
+function applyPlayerSettingsFromUI() {
+  const countSelect = document.getElementById("playerCountSelect");
+  activePlayerCount = Math.max(2, Math.min(4, Number(countSelect ? countSelect.value : activePlayerCount) || 4));
+  for (let i = 0; i < 4; i++) {
+    const input = document.getElementById("playerNameInput" + i);
+    if (input) playerNames[i] = input.value.trim() || defaultPlayerNames[i];
+    else if (!playerNames[i]) playerNames[i] = defaultPlayerNames[i];
+  }
+  if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
+  localStorage.setItem("catanSelfPlayerIndex", String(selfPlayerIndex));
+  refreshPlayerSetupUI();
+  updateTurnDisplay();
+  refreshScoreAndResources();
+  updateDevCardUI();
+  updateRobberTargetSelect(robberTileIndex, getCurrentPlayer());
+  redraw();
+  log("プレイヤー設定を反映しました。");
+}
+
+function setSelfPlayerFromUI() {
+  const select = document.getElementById("selfPlayerSelect");
+  selfPlayerIndex = Math.max(0, Math.min(activePlayerCount - 1, Number(select ? select.value : 0) || 0));
+  localStorage.setItem("catanSelfPlayerIndex", String(selfPlayerIndex));
+  updateResourceTable();
+  updateDevCardUI();
+  updatePlayerCardsUI();
+}
+
+function applyPlayerSettingsData(data) {
+  if (!data) return;
+  if (data.activePlayerCount !== undefined) activePlayerCount = Math.max(2, Math.min(4, Number(data.activePlayerCount) || 4));
+  if (Array.isArray(data.playerNames)) {
+    for (let i = 0; i < 4; i++) playerNames[i] = data.playerNames[i] || defaultPlayerNames[i];
+  }
+  if (selfPlayerIndex >= activePlayerCount) selfPlayerIndex = 0;
+  refreshPlayerSetupUI();
 }
 
 function saveUndoState() {
@@ -3764,7 +3908,7 @@ function markSetupRoadDoneSafe() {
 }
 
 function makeSetupTurnOrderOnly() {
-  const first = shuffle([0, 1, 2, 3]);
+  const first = shuffle(activePlayerIndices());
   const second = [...first].reverse();
   return [...first, ...second];
 }
@@ -3784,9 +3928,9 @@ function updateSetupTurnInfoOnly() {
   }
 
   const p = currentSetupTurnPlayerOnly();
-  setupTurnRound = setupTurnIndex < 4 ? 1 : 2;
+  setupTurnRound = setupTurnIndex < activePlayerCount ? 1 : 2;
 
-  el.textContent = "初期配置 " + setupTurnRound + "周目：" + playerNames[p] + "のターン";
+  el.textContent = "初期配置 " + setupTurnRound + "周目：" + getPlayerName(p) + "のターン";
 
   const playerSelect = document.getElementById("playerSelect");
   if (playerSelect && p !== null) {
@@ -3814,7 +3958,7 @@ function startSetupTurnOnly() {
   updateSetupTurnInfoOnly();
   resetSetupBuildPhaseSafe();
   syncPieceSelectWithSetupPhaseSafe();
-  log("初期配置開始（自動進行）：順番：" + setupTurnOrder.map(p => playerNames[p]).join(" → "));
+  log("初期配置開始（自動進行）：順番：" + setupTurnOrder.map(p => getPlayerName(p)).join(" → "));
 }
 
 function nextSetupTurnOnly() {
@@ -3857,7 +4001,7 @@ function updateTurnDisplay() {
   const player = getCurrentPlayer();
   const el = document.getElementById("turnDisplay");
   if (el) {
-    el.textContent = "現在のターン：" + playerNames[player];
+    el.textContent = "現在のターン：" + getPlayerName(player);
     el.style.borderColor = playerStroke[player];
   }
 }
@@ -3877,7 +4021,7 @@ function nextTurn() {
   const current = Number(select.value);
   // 発展カードは購入したターン中は使えない。ターン終了時に使用可能へ移す。
   makeNewDevCardsUsable(current);
-  const next = (current + 1) % playerNames.length;
+  const next = (current + 1) % activePlayerCount;
   select.value = String(next);
   yearOfPlentySelectionActive = false;
   monopolySelectionActive = false;
@@ -3889,7 +4033,7 @@ function nextTurn() {
   updatePortTradeUI(false);
   updateDevCardUI();
   redraw();
-  log("ターン変更：" + playerNames[next] + "のターンです。");
+  log("ターン変更：" + getPlayerName(next) + "のターンです。");
 }
 
 
@@ -4037,6 +4181,8 @@ function redraw() {
 }
 
 function generateBoard() {
+  applyPlayerSettingsData(data);
+
   cells = getCells();
   deck = makeResourceLayout(cells);
   numbers = makeNumberLayout(deck);
@@ -4780,12 +4926,13 @@ function updateLongestRoadTable() {
   updateLongestRoadOwner();
 
   const lengths = calculateAllLongestRoads();
-  let html = "<tr><th>色</th><th>道の長さ</th><th>ボーナス</th></tr>";
+  let html = "<tr><th>プレイヤー</th><th>道の長さ</th><th>ボーナス</th></tr>";
 
-  lengths.forEach((length, player) => {
+  activePlayerIndices().forEach((player) => {
+    const length = lengths[player] || 0;
     const bonus = longestRoadOwner === player ? "+2" : "";
     html += `<tr>
-      <td>${playerNames[player]}</td>
+      <td>${escapeHtml(getPlayerName(player))}</td>
       <td>${length}</td>
       <td>${bonus}</td>
     </tr>`;
@@ -4832,11 +4979,12 @@ function updateLargestArmyTable() {
 
   updateLargestArmyOwner();
 
-  let html = "<tr><th>色</th><th>騎士使用</th><th>ボーナス</th></tr>";
-  knightUsedCounts.forEach((count, player) => {
+  let html = "<tr><th>プレイヤー</th><th>騎士使用</th><th>ボーナス</th></tr>";
+  activePlayerIndices().forEach((player) => {
+    const count = knightUsedCounts[player] || 0;
     const bonus = largestArmyOwner === player ? "+2" : "";
     html += `<tr>
-      <td>${playerNames[player]}</td>
+      <td>${escapeHtml(getPlayerName(player))}</td>
       <td>${count || 0}</td>
       <td>${bonus}</td>
     </tr>`;
@@ -4875,11 +5023,12 @@ function updateVictoryTable() {
   if (!table) return;
 
   const points = calculateVictoryPoints();
-  let html = "<tr><th>色</th><th>勝利点</th></tr>";
+  let html = "<tr><th>プレイヤー</th><th>勝利点</th></tr>";
 
-  points.forEach((point, i) => {
+  activePlayerIndices().forEach((i) => {
+    const point = points[i] || 0;
     html += `<tr>
-      <td>${playerNames[i]}</td>
+      <td>${escapeHtml(getPlayerName(i))}</td>
       <td>${point}</td>
     </tr>`;
   });
@@ -5312,6 +5461,11 @@ function buyDevCard() {
   }
 
   const player = Number(document.getElementById("playerSelect").value);
+  if (player !== getSelfPlayer()) {
+    log("発展カード購入不可：現在のターンプレイヤーと、あなたの設定が一致していません。");
+    updateDevCardUI();
+    return;
+  }
 
   if (devDeck.length === 0) {
     log("発展カード購入不可：山札がありません。");
@@ -5348,6 +5502,7 @@ function buyDevCard() {
 function updateDevCardUI() {
   const info = document.getElementById("devCardInfo");
   const table = document.getElementById("devCardTable");
+  const buyDevCardButton = document.getElementById("buyDevCardButton");
   const knightButton = document.getElementById("useKnightButton");
   const yearOfPlentyButton = document.getElementById("useYearOfPlentyButton");
   const roadBuildingButton = document.getElementById("useRoadBuildingButton");
@@ -5361,7 +5516,9 @@ function updateDevCardUI() {
   const yearOfPlentySelect2 = document.getElementById("yearOfPlentyResource2");
 
   const playerSelect = document.getElementById("playerSelect");
-  const player = playerSelect ? Number(playerSelect.value) : 0;
+  const currentTurnPlayer = playerSelect ? Number(playerSelect.value) : 0;
+  const player = getSelfPlayer();
+  const isMyTurn = player === currentTurnPlayer;
   const playerDevCards = devCards[player] || { knight:0, vp:0, roadBuilding:0, yearOfPlenty:0, monopoly:0 };
   const playerNewDevCards = devCardsNewThisTurn[player] || { knight:0, vp:0, roadBuilding:0, yearOfPlenty:0, monopoly:0 };
   const usableDevCards = {
@@ -5385,20 +5542,24 @@ function updateDevCardUI() {
     roadBuildingRoadsLeft = 0;
   }
 
+  if (buyDevCardButton) {
+    buyDevCardButton.disabled = !isMyTurn || blocked || roadBuildingActive || sevenDiscardActive;
+  }
+
   if (knightButton) {
-    knightButton.disabled = usableDevCards.knight <= 0 || blocked;
+    knightButton.disabled = !isMyTurn || usableDevCards.knight <= 0 || blocked;
   }
 
   if (yearOfPlentyButton) {
-    yearOfPlentyButton.disabled = usableDevCards.yearOfPlenty <= 0 || blocked || roadBuildingActive;
+    yearOfPlentyButton.disabled = !isMyTurn || usableDevCards.yearOfPlenty <= 0 || blocked || roadBuildingActive;
   }
 
   if (roadBuildingButton) {
-    roadBuildingButton.disabled = usableDevCards.roadBuilding <= 0 || blocked || roadBuildingActive || sevenDiscardActive;
+    roadBuildingButton.disabled = !isMyTurn || usableDevCards.roadBuilding <= 0 || blocked || roadBuildingActive || sevenDiscardActive;
   }
 
   if (monopolyButton) {
-    monopolyButton.disabled = usableDevCards.monopoly <= 0 || blocked || roadBuildingActive || sevenDiscardActive;
+    monopolyButton.disabled = !isMyTurn || usableDevCards.monopoly <= 0 || blocked || roadBuildingActive || sevenDiscardActive;
   }
 
   if (yearOfPlentyPanel) {
@@ -5425,7 +5586,7 @@ function updateDevCardUI() {
     ? "最大騎士力：なし"
     : "最大騎士力：" + playerNames[largestArmyOwner];
   const roadBuildingText = roadBuildingActive ? " / 街道建設：残り" + roadBuildingRoadsLeft + "本" : "";
-  info.innerHTML = "山札：" + devDeck.length + "枚 / " + playerNames[player] + "の発展カード / 騎士使用：" + used + "回 / " + armyText + roadBuildingText;
+  info.innerHTML = "山札：" + devDeck.length + "枚 / あなた（" + getPlayerName(player) + "）の発展カード / 騎士使用：" + used + "回 / " + armyText + roadBuildingText;
 
   let html = "<tr><th>種類</th><th>枚数</th><th>使用可能</th></tr>";
   Object.entries(playerDevCards).forEach(([type, count]) => {
@@ -5713,7 +5874,7 @@ function updatePlayerCardsUI() {
 
   container.innerHTML = "";
 
-  playerNames.forEach((name, player) => {
+  activePlayerIndices().forEach((player) => {
     const r = resources[player];
     const remain = getRemainingPieces(player);
 
@@ -5725,11 +5886,12 @@ function updatePlayerCardsUI() {
     card.className = "playerCardBox" + (player === active ? " activeCard" : "") + (discardActiveForThisPlayer ? " discardActiveCard" : "");
     card.style.backgroundImage = `url(${playerCardImages[cardKeys[player]]})`;
 
-    const visibleResources = player === active
+    const visibleResources = player === getSelfPlayer()
       ? [r.forest, r.wheat, r.ore, r.brick, r.sheep]
       : ["?", "?", "?", "?", "?"];
 
     card.innerHTML = `
+      <div class="pcName">${escapeHtml(getPlayerName(player))}</div>
       <div class="pcValues">
         <span>${visibleResources[0]}</span>
         <span>${visibleResources[1]}</span>
@@ -6113,13 +6275,13 @@ function debugGiveResources99() {
 
 function updateResourceTable() {
   const table = document.getElementById("resourceTable");
-  const playerSelect = document.getElementById("playerSelect");
-  const active = playerSelect ? Number(playerSelect.value) : 0;
-  let html = "<tr><th>色</th><th>木</th><th>羊</th><th>麦</th><th>レンガ</th><th>鉄</th></tr>";
-  resources.forEach((r, i) => {
+  const active = getSelfPlayer();
+  let html = "<tr><th>プレイヤー</th><th>木</th><th>羊</th><th>麦</th><th>レンガ</th><th>鉄</th></tr>";
+  activePlayerIndices().forEach((i) => {
+    const r = resources[i];
     const visible = i === active;
     html += `<tr>
-      <td>${playerNames[i]}</td>
+      <td>${escapeHtml(getPlayerName(i))}</td>
       <td>${visible ? r.forest : "?"}</td>
       <td>${visible ? r.sheep : "?"}</td>
       <td>${visible ? r.wheat : "?"}</td>
@@ -6149,6 +6311,7 @@ function downloadPng() {
   a.click();
 }
 
+refreshPlayerSetupUI();
 loadImages().then(generateBoard);
 </script>
 
@@ -6199,8 +6362,10 @@ loadImages().then(generateBoard);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v145-board-save",
+    version: "v148-player-settings",
     savedAt: new Date().toISOString(),
+    activePlayerCount,
+    playerNames: clone(playerNames),
     currentPlayer: getCurrentPlayer(),
     deck: clone(deck),
     numbers: clone(numbers),
@@ -6281,7 +6446,7 @@ function applyBoardSaveData(data) {
   roadBuildingRoadsLeft = data.roadBuildingRoadsLeft || 0;
 
   const select = document.getElementById("playerSelect");
-  if (select && data.currentPlayer !== undefined) select.value = String(data.currentPlayer);
+  if (select && data.currentPlayer !== undefined) select.value = String(Math.min(Number(data.currentPlayer) || 0, activePlayerCount - 1));
   const dice = document.getElementById("diceResult");
   if (dice) dice.innerHTML = data.diceResultHTML || lastDiceText || "まだ振っていません";
   const robberStatus = document.getElementById("robberStatus");
