@@ -2160,7 +2160,7 @@ body {
               </label>
               <button onclick="applyRoomFromUI()">ルームを反映</button>
               <div id="currentRoomDisplay" style="font-size:12px;margin-top:8px;color:#555;">現在のルーム：1</div>
-              <div id="roomPresenceDisplay" style="font-size:12px;margin-top:4px;color:#555;">接続人数：1人</div>
+              <div id="roomPresenceDisplay" style="font-size:14px;margin-top:8px;color:#111;font-weight:700;border-top:1px solid #ddd;padding-top:6px;">接続人数：確認中...</div>
             </div>
           </div>
         </details>
@@ -6451,7 +6451,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v162-room-presence",
+    version: "v163-room-presence-visible",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
