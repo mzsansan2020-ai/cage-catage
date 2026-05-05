@@ -2151,7 +2151,7 @@ body {
         <div class="leftLogTitle">操作</div>
 
         <div class="leftControlsBox">
-        <details class="fold" open>
+        <details class="fold" open id="roomSettingFold">
           <summary>ルーム設定</summary>
           <div class="foldBody">
             <div class="playerSetupBox">
@@ -6384,6 +6384,14 @@ loadImages().then(generateBoard);
 })();
 
 
+
+window.addEventListener("DOMContentLoaded", () => {
+  const roomFold = document.getElementById("roomSettingFold");
+  if (roomFold) roomFold.open = true;
+  const roomInput = document.getElementById("roomIdInput");
+  if (roomInput && window.currentRoomId) roomInput.value = window.currentRoomId;
+});
+
 // ===== ルーム設定 =====
 let currentRoomId = localStorage.getItem("catanCurrentRoomId") || "1";
 
@@ -6434,7 +6442,7 @@ window.addEventListener("load", refreshRoomUI);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v160-room-light-safe",
+    version: "v161-room-ui-visible",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
