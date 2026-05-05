@@ -6370,7 +6370,7 @@ loadImages().then(generateBoard);
 // ===== Firebase 盤面保存・読込 =====
 function getBoardSaveData() {
   return {
-    version: "v153-realtime-sync-click-save",
+    version: "v154-realtime-sync-tab-client",
     savedAt: new Date().toISOString(),
     activePlayerCount,
     playerNames: clone(playerNames),
@@ -6580,11 +6580,13 @@ async function loadBoardFromCloud() {
 
   const boardRef = doc(db, "boards", "latest");
 
-  const clientIdKey = "catanFirebaseClientId";
-  let clientId = localStorage.getItem(clientIdKey);
+  // リアルタイム同期用ID。localStorageだと同じPCの別ウィンドウが同一IDになり、
+  // テスト時に相手画面の更新を無視してしまうため、タブごとに分けます。
+  const clientIdKey = "catanFirebaseTabClientId";
+  let clientId = sessionStorage.getItem(clientIdKey);
   if (!clientId) {
     clientId = String(Date.now()) + "-" + Math.random().toString(36).slice(2);
-    localStorage.setItem(clientIdKey, clientId);
+    sessionStorage.setItem(clientIdKey, clientId);
   }
 
   window.firebaseSaveBoard = async function(data) {
@@ -6607,7 +6609,7 @@ async function loadBoardFromCloud() {
     console.error("Realtime sync failed", error);
   });
 
-  console.log("Firebase connected");
+  console.log("Firebase connected", clientId);
 </script>
 
 </body>
