@@ -3349,11 +3349,11 @@ let robberMode = false;
 let pendingRobberSteal = false;
 let pendingRobberPlayer = null;
 
-// v225: 被害UI用。盤面タイル情報を外部UIから安全に読むための読み取り専用ブリッジ。
+// v226: 被害UI用。盤面タイル情報を外部UIから安全に読むための読み取り専用ブリッジ。
 window.__getRobberVictimTileInfo = function(tileIndex) {
   const i = Number(tileIndex);
-  const resource = Array.isArray(deck) ? deck[i] : null;
-  const number = Array.isArray(numbers) ? numbers[i] : null;
+  const resource = Array.isArray(deck) ? deck[i] : "";
+  const number = Array.isArray(numbers) ? numbers[i] : "";
   const imageSrc = resource && imageData && imageData[resource] ? imageData[resource] : "";
   return {
     tileIndex: i,
@@ -11379,12 +11379,17 @@ function previewGameStartConfirm(){
   window.showRobberLootAfterMovePreview212 = function(tileIndex, movingPlayer) {
     const candidates = getCandidates223(tileIndex, movingPlayer);
 
+    const tileInfo = (typeof window.__getRobberVictimTileInfo === "function")
+      ? window.__getRobberVictimTileInfo(tileIndex)
+      : { tileIndex: Number(tileIndex), resource: "", number: "", imageSrc: "" };
+
     const notice = {
       id: Date.now() + "_" + Math.random().toString(36).slice(2),
       active: true,
       tileIndex: Number(tileIndex),
       movingPlayer: Number(movingPlayer),
       candidates: candidates,
+      tileInfo: tileInfo,
       createdAt: Date.now()
     };
 
@@ -11901,6 +11906,212 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_VICTIM_TILE_BRIDGE_V225_END -->
+
+
+<!-- ROBBER_VICTIM_NOTICE_PAYLOAD_V226_START -->
+<script>
+(function(){
+  const COLORS_226 = {
+    red:    { label:'赤', pawn:'#d42626', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)' },
+    blue:   { label:'青', pawn:'#1d78d2', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)' },
+    green:  { label:'緑', pawn:'#2e9439', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)' },
+    yellow: { label:'黄', pawn:'#e0ad22', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)' }
+  };
+
+  const TILE_STYLES_226 = {
+    forest: { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    wood:   { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    brick:  { bg: "linear-gradient(135deg,#9b4c22,#c77932 55%,#7f361c)" },
+    sheep:  { bg: "linear-gradient(135deg,#5aa84f,#b6d76b 55%,#67b957)" },
+    wheat:  { bg: "linear-gradient(135deg,#c49025,#e3c85a 58%,#b77b1f)" },
+    ore:    { bg: "linear-gradient(135deg,#4d4d4d,#8b8b8b 52%,#2e2e2e)" },
+    desert: { bg: "linear-gradient(135deg,#c7964f,#ecd08a 55%,#b67f3d)" }
+  };
+
+  function key226(player) {
+    return ["red","blue","green","yellow"][Number(player)] || "red";
+  }
+
+  function color226(player) {
+    return COLORS_226[key226(player)] || COLORS_226.red;
+  }
+
+  function name226(player) {
+    try {
+      if (typeof getPlayerName === "function") return getPlayerName(player);
+    } catch(e) {}
+    return color226(player).label;
+  }
+
+  function normalize226(resource) {
+    const map = {
+      wood:"forest", forest:"forest", "木":"forest",
+      brick:"brick", clay:"brick", "粘土":"brick",
+      sheep:"sheep", wool:"sheep", "羊":"sheep",
+      wheat:"wheat", grain:"wheat", "麦":"wheat",
+      ore:"ore", stone:"ore", rock:"ore", "石":"ore",
+      desert:"desert", "砂漠":"desert"
+    };
+    const raw = String(resource || "").trim();
+    return map[raw] || map[raw.toLowerCase()] || raw.toLowerCase() || "forest";
+  }
+
+  function getFallbackInfo226(tileIndex) {
+    if (typeof window.__getRobberVictimTileInfo === "function") {
+      return window.__getRobberVictimTileInfo(tileIndex);
+    }
+    return { resource:"", number:"", imageSrc:"" };
+  }
+
+  function renderVictim226(attackerPlayer, victimPlayer, tileIndex, tileInfoArg) {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const modal = document.getElementById("rbVictimModal222");
+    if (!overlay || !modal) return;
+
+    const attacker = color226(attackerPlayer);
+    const victim = color226(victimPlayer);
+    const fallback = getFallbackInfo226(tileIndex);
+    const tileInfo = tileInfoArg || fallback || {};
+
+    const resource = normalize226(tileInfo.resource || fallback.resource);
+    const number = (tileInfo.number !== undefined && tileInfo.number !== null && tileInfo.number !== "")
+      ? tileInfo.number
+      : ((fallback.number !== undefined && fallback.number !== null && fallback.number !== "") ? fallback.number : "?");
+    const imageSrc = tileInfo.imageSrc || fallback.imageSrc || "";
+    const style = TILE_STYLES_226[resource] || TILE_STYLES_226.forest;
+
+    modal.style.setProperty("--rbVictimAccent222", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark222", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow222", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn222", victim.pawn);
+
+    const tileEl = document.getElementById("rbVictimTile222");
+    const numEl = document.getElementById("rbVictimNumber222");
+    const nameEl = document.getElementById("rbVictimPlayerName222");
+
+    if (tileEl) {
+      tileEl.style.setProperty("--rbTileBg222", style.bg);
+      tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+    }
+    if (numEl) numEl.textContent = number;
+    if (nameEl) nameEl.textContent = victim.label + "の" + name226(victimPlayer);
+
+    if (typeof log === "function") {
+      log("被害UI表示：tile=" + tileIndex + " resource=" + resource + " number=" + number + (imageSrc ? " image=OK" : " image=なし"));
+    }
+
+    overlay.style.display = "flex";
+  }
+
+  // All direct calls still work.
+  window.showRobberVictimNotice222 = renderVictim226;
+  window.showRobberVictimNotice221 = renderVictim226;
+  window.showRobberVictimNotice220 = renderVictim226;
+  window.showRobberVictimNotice219 = renderVictim226;
+  window.showRobberVictimNotice218 = renderVictim226;
+  window.showRobberVictimNotice215 = renderVictim226;
+
+  // Re-wrap notice processor by overriding Firebase application handler.
+  function processNotice226(notice) {
+    if (!notice || !notice.active) {
+      if (typeof hideRobberVictimNotice222 === "function") hideRobberVictimNotice222();
+      return;
+    }
+
+    let self = null;
+    try {
+      if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+    } catch(e) {}
+    if (self === null || Number.isNaN(self)) return;
+
+    const movingPlayer = Number(notice.movingPlayer);
+    const candidates = Array.isArray(notice.candidates) ? notice.candidates.map(Number) : [];
+
+    if (self !== movingPlayer && candidates.includes(self)) {
+      renderVictim226(movingPlayer, self, Number(notice.tileIndex), notice.tileInfo);
+    }
+  }
+
+  const install226 = function() {
+    if (window.__victimPayloadApplyWrapped226) return;
+    if (typeof window.applyRealtimeBoardData !== "function") return;
+
+    const originalApply = window.applyRealtimeBoardData;
+    window.__victimPayloadApplyWrapped226 = true;
+    window.applyRealtimeBoardData = function(data) {
+      const result = originalApply(data);
+      if (data && data.robberLootNotice) processNotice226(data.robberLootNotice);
+      return result;
+    };
+  };
+
+  const timer226 = setInterval(() => {
+    if (typeof window.applyRealtimeBoardData === "function") {
+      clearInterval(timer226);
+      install226();
+    }
+  }, 250);
+
+  // Wrap the after-move handler last so it publishes tileInfo payload.
+  const prevAfterMove226 = window.showRobberLootAfterMovePreview212;
+  window.showRobberLootAfterMovePreview212 = function(tileIndex, movingPlayer) {
+    const candidates = (typeof getPlayersAdjacentToTile === "function")
+      ? getPlayersAdjacentToTile(tileIndex, movingPlayer).map(Number)
+      : [];
+    const tileInfo = (typeof window.__getRobberVictimTileInfo === "function")
+      ? window.__getRobberVictimTileInfo(tileIndex)
+      : { tileIndex:Number(tileIndex), resource:"", number:"", imageSrc:"" };
+
+    if (typeof window.firebasePublishRobberLootNotice === "function") {
+      window.firebasePublishRobberLootNotice({
+        id: Date.now() + "_" + Math.random().toString(36).slice(2),
+        active: true,
+        tileIndex: Number(tileIndex),
+        movingPlayer: Number(movingPlayer),
+        candidates: candidates,
+        tileInfo: tileInfo,
+        createdAt: Date.now()
+      }).catch(console.error);
+    }
+
+    // Self-side display by existing logic
+    if (typeof prevAfterMove226 === "function") {
+      return prevAfterMove226(tileIndex, movingPlayer);
+    }
+  };
+
+  function fixButton226() {
+    const btn =
+      document.getElementById("robberVictimTestBtn222") ||
+      document.getElementById("robberVictimTestBtn221") ||
+      document.getElementById("robberVictimTestBtn220") ||
+      document.getElementById("robberVictimTestBtn219") ||
+      document.getElementById("robberVictimTestBtn218") ||
+      document.getElementById("robberVictimTestBtn217");
+    if (!btn) return;
+
+    btn.onclick = function() {
+      let self = 1;
+      try {
+        if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+      } catch(e) {}
+      const attacker = self === 0 ? 1 : 0;
+      const tile = (typeof robberTileIndex !== "undefined" && robberTileIndex !== null) ? robberTileIndex : 0;
+      const info = (typeof window.__getRobberVictimTileInfo === "function")
+        ? window.__getRobberVictimTileInfo(tile)
+        : null;
+      renderVictim226(attacker, self, tile, info);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fixButton226);
+  } else {
+    fixButton226();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_NOTICE_PAYLOAD_V226_END -->
 
 </body>
 </html>
