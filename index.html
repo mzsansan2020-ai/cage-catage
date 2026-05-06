@@ -3349,6 +3349,26 @@ let robberMode = false;
 let pendingRobberSteal = false;
 let pendingRobberPlayer = null;
 
+// v227: 被害UI用。現在の盗賊タイル情報を必ず取得する読み取り専用ブリッジ。
+window.__getRobberVictimTileInfoV227 = function(tileIndex) {
+  const i = (tileIndex === null || tileIndex === undefined || Number.isNaN(Number(tileIndex)))
+    ? Number(robberTileIndex)
+    : Number(tileIndex);
+
+  const resource = Array.isArray(deck) ? deck[i] : "";
+  const number = Array.isArray(numbers) ? numbers[i] : "";
+  const imageSrc = resource && imageData && imageData[resource] ? imageData[resource] : "";
+
+  return {
+    tileIndex: i,
+    resource: resource || "",
+    number: number === null || number === undefined ? "" : number,
+    imageSrc: imageSrc || "",
+    robberTileIndex: robberTileIndex
+  };
+};
+
+
 // v226: 被害UI用。盤面タイル情報を外部UIから安全に読むための読み取り専用ブリッジ。
 window.__getRobberVictimTileInfo = function(tileIndex) {
   const i = Number(tileIndex);
@@ -12112,6 +12132,245 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_VICTIM_NOTICE_PAYLOAD_V226_END -->
+
+
+<!-- ROBBER_VICTIM_FORCE_UPDATE_V227_START -->
+<script>
+(function(){
+  const COLORS_227 = {
+    red:    { label:'赤', pawn:'#d42626', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)' },
+    blue:   { label:'青', pawn:'#1d78d2', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)' },
+    green:  { label:'緑', pawn:'#2e9439', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)' },
+    yellow: { label:'黄', pawn:'#e0ad22', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)' }
+  };
+
+  const TILE_STYLE_227 = {
+    forest: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)",
+    wood:   "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)",
+    brick:  "linear-gradient(135deg,#9b4c22,#c77932 55%,#7f361c)",
+    sheep:  "linear-gradient(135deg,#5aa84f,#b6d76b 55%,#67b957)",
+    wheat:  "linear-gradient(135deg,#c49025,#e3c85a 58%,#b77b1f)",
+    ore:    "linear-gradient(135deg,#4d4d4d,#8b8b8b 52%,#2e2e2e)",
+    desert: "linear-gradient(135deg,#c7964f,#ecd08a 55%,#b67f3d)"
+  };
+
+  function normalizeResource227(resource) {
+    const map = {
+      wood:"forest", forest:"forest", "木":"forest",
+      brick:"brick", clay:"brick", "粘土":"brick",
+      sheep:"sheep", wool:"sheep", "羊":"sheep",
+      wheat:"wheat", grain:"wheat", "麦":"wheat",
+      ore:"ore", stone:"ore", rock:"ore", "石":"ore",
+      desert:"desert", "砂漠":"desert"
+    };
+    const raw = String(resource || "").trim();
+    return map[raw] || map[raw.toLowerCase()] || raw.toLowerCase() || "forest";
+  }
+
+  function colorKey227(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function color227(player) {
+    return COLORS_227[colorKey227(player)] || COLORS_227.red;
+  }
+
+  function playerName227(player) {
+    try {
+      if (typeof getPlayerName === "function") return getPlayerName(player);
+    } catch(e) {}
+    return color227(player).label;
+  }
+
+  function getTileInfo227(tileIndex, noticeTileInfo) {
+    if (noticeTileInfo && (noticeTileInfo.imageSrc || noticeTileInfo.number || noticeTileInfo.resource)) {
+      return noticeTileInfo;
+    }
+
+    if (typeof window.__getRobberVictimTileInfoV227 === "function") {
+      return window.__getRobberVictimTileInfoV227(tileIndex);
+    }
+
+    if (typeof window.__getRobberVictimTileInfo === "function") {
+      return window.__getRobberVictimTileInfo(tileIndex);
+    }
+
+    return { resource:"", number:"", imageSrc:"" };
+  }
+
+  function hideOldVictimOverlays227() {
+    ["rbVictimOverlay215","rbVictimOverlay218","rbVictimOverlay219","rbVictimOverlay220","rbVictimOverlay221"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  }
+
+  function applyVictimDynamicParts227(attackerPlayer, victimPlayer, tileIndex, noticeTileInfo) {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const modal = document.getElementById("rbVictimModal222");
+    const tileEl = document.getElementById("rbVictimTile222");
+    const numberEl = document.getElementById("rbVictimNumber222");
+    const nameEl = document.getElementById("rbVictimPlayerName222");
+
+    if (!overlay || !modal || !tileEl || !numberEl || !nameEl) {
+      console.warn("v227 victim UI target elements not found");
+      return false;
+    }
+
+    const attacker = color227(attackerPlayer);
+    const victim = color227(victimPlayer);
+    const tileInfo = getTileInfo227(tileIndex, noticeTileInfo);
+    const resource = normalizeResource227(tileInfo.resource);
+    const number = (tileInfo.number !== null && tileInfo.number !== undefined && tileInfo.number !== "")
+      ? tileInfo.number
+      : "?";
+    const imageSrc = tileInfo.imageSrc || "";
+
+    modal.style.setProperty("--rbVictimAccent222", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark222", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow222", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn222", victim.pawn);
+
+    tileEl.style.setProperty("--rbTileBg222", TILE_STYLE_227[resource] || TILE_STYLE_227.forest);
+    tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+    numberEl.textContent = number;
+    nameEl.textContent = victim.label + "の" + playerName227(victimPlayer);
+
+    window.__lastVictimDynamic227 = {
+      attackerPlayer: Number(attackerPlayer),
+      victimPlayer: Number(victimPlayer),
+      tileIndex: Number(tileIndex),
+      tileInfo: tileInfo
+    };
+
+    if (typeof log === "function") {
+      log("被害UI表示：tile=" + tileIndex + " resource=" + resource + " number=" + number + (imageSrc ? " image=OK" : " image=なし"));
+    }
+
+    return true;
+  }
+
+  function showVictim227(attackerPlayer, victimPlayer, tileIndex, noticeTileInfo) {
+    hideOldVictimOverlays227();
+
+    const overlay = document.getElementById("rbVictimOverlay222");
+    if (!overlay) return;
+
+    applyVictimDynamicParts227(attackerPlayer, victimPlayer, tileIndex, noticeTileInfo);
+    overlay.style.display = "flex";
+
+    // 表示後にも一度だけ再適用。既存処理が後から初期値に戻しても上書きする。
+    setTimeout(() => {
+      applyVictimDynamicParts227(attackerPlayer, victimPlayer, tileIndex, noticeTileInfo);
+    }, 80);
+  }
+
+  // 最終的に呼ばれる関数名を全部ここへ集約する。
+  window.showRobberVictimNotice222 = showVictim227;
+  window.showRobberVictimNotice221 = showVictim227;
+  window.showRobberVictimNotice220 = showVictim227;
+  window.showRobberVictimNotice219 = showVictim227;
+  window.showRobberVictimNotice218 = showVictim227;
+  window.showRobberVictimNotice215 = showVictim227;
+
+  // Firebase更新処理の後段でも必ず拾う。
+  function processNotice227(notice) {
+    if (!notice || !notice.active) {
+      if (typeof hideRobberVictimNotice222 === "function") hideRobberVictimNotice222();
+      return;
+    }
+
+    let self = null;
+    try {
+      if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+    } catch(e) {}
+
+    if (self === null || Number.isNaN(self)) return;
+
+    const movingPlayer = Number(notice.movingPlayer);
+    const candidates = Array.isArray(notice.candidates) ? notice.candidates.map(Number) : [];
+
+    if (self !== movingPlayer && candidates.includes(self)) {
+      showVictim227(movingPlayer, self, Number(notice.tileIndex), notice.tileInfo);
+    }
+  }
+
+  function installApplyWrapper227() {
+    if (window.__victimForceApplyWrapped227) return;
+    if (typeof window.applyRealtimeBoardData !== "function") return;
+
+    const originalApply = window.applyRealtimeBoardData;
+    window.__victimForceApplyWrapped227 = true;
+
+    window.applyRealtimeBoardData = function(data) {
+      const result = originalApply(data);
+      if (data && data.robberLootNotice) {
+        processNotice227(data.robberLootNotice);
+      }
+      return result;
+    };
+  }
+
+  const applyTimer227 = setInterval(() => {
+    if (typeof window.applyRealtimeBoardData === "function") {
+      clearInterval(applyTimer227);
+      installApplyWrapper227();
+    }
+  }, 250);
+
+  // 表示中に初期値へ戻された場合でも、最後に正しい情報を再反映する。
+  setInterval(() => {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const ctx = window.__lastVictimDynamic227;
+    if (!overlay || !ctx) return;
+    if (overlay.style.display === "none" || getComputedStyle(overlay).display === "none") return;
+
+    const num = document.getElementById("rbVictimNumber222");
+    const tile = document.getElementById("rbVictimTile222");
+    if (!num || !tile) return;
+
+    const needsFix = num.textContent === "?" || tile.style.getPropertyValue("--rbTileImage222") === "none" || tile.style.getPropertyValue("--rbTileImage222") === "";
+    if (needsFix) {
+      applyVictimDynamicParts227(ctx.attackerPlayer, ctx.victimPlayer, ctx.tileIndex, ctx.tileInfo);
+    }
+  }, 300);
+
+  // 被害UIテストボタンも必ずこの本番UIを呼ぶ。
+  function fixButton227() {
+    const btn =
+      document.getElementById("robberVictimTestBtn222") ||
+      document.getElementById("robberVictimTestBtn221") ||
+      document.getElementById("robberVictimTestBtn220") ||
+      document.getElementById("robberVictimTestBtn219") ||
+      document.getElementById("robberVictimTestBtn218") ||
+      document.getElementById("robberVictimTestBtn217");
+    if (!btn) return;
+
+    btn.onclick = function() {
+      let self = 1;
+      try {
+        if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+      } catch(e) {}
+      const attacker = self === 0 ? 1 : 0;
+      let tile = 0;
+      try {
+        if (typeof window.__getRobberVictimTileInfoV227 === "function") {
+          const info = window.__getRobberVictimTileInfoV227(null);
+          tile = info.tileIndex;
+        }
+      } catch(e) {}
+      showVictim227(attacker, self, tile);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fixButton227);
+  } else {
+    fixButton227();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_FORCE_UPDATE_V227_END -->
 
 </body>
 </html>
