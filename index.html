@@ -11733,6 +11733,11 @@ function previewGameStartConfirm(){
     if (tileEl) {
       tileEl.style.setProperty("--rbTileBg222", style.bg);
       tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+      if (imageSrc) {
+        tileEl.classList.add("rbVictimTileHasImage228");
+      } else {
+        tileEl.classList.remove("rbVictimTileHasImage228");
+      }
     }
     if (numEl) numEl.textContent = number;
     if (nameEl) nameEl.textContent = victim.label + "の" + playerName224(victimPlayer);
@@ -12012,6 +12017,11 @@ function previewGameStartConfirm(){
     if (tileEl) {
       tileEl.style.setProperty("--rbTileBg222", style.bg);
       tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+      if (imageSrc) {
+        tileEl.classList.add("rbVictimTileHasImage228");
+      } else {
+        tileEl.classList.remove("rbVictimTileHasImage228");
+      }
     }
     if (numEl) numEl.textContent = number;
     if (nameEl) nameEl.textContent = victim.label + "の" + name226(victimPlayer);
@@ -12233,6 +12243,11 @@ function previewGameStartConfirm(){
 
     tileEl.style.setProperty("--rbTileBg222", TILE_STYLE_227[resource] || TILE_STYLE_227.forest);
     tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+      if (imageSrc) {
+        tileEl.classList.add("rbVictimTileHasImage228");
+      } else {
+        tileEl.classList.remove("rbVictimTileHasImage228");
+      }
     numberEl.textContent = number;
     nameEl.textContent = victim.label + "の" + playerName227(victimPlayer);
 
@@ -12371,6 +12386,91 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_VICTIM_FORCE_UPDATE_V227_END -->
+
+
+<!-- ROBBER_VICTIM_TILE_BG_FIX_V228_START -->
+<style>
+  /* v228: 実タイル画像がある場合は、仮の緑タイル背景を完全に消す */
+  .rbVictimTile222.rbVictimTileHasImage228,
+  .rbVictimTile221.rbVictimTileHasImage228,
+  .rbVictimTile220.rbVictimTileHasImage228 {
+    background: var(--rbTileImage222, var(--rbTileImage221, var(--rbTileImage220))) center / contain no-repeat !important;
+    border: none !important;
+    box-shadow: 0 10px 14px rgba(0,0,0,.26) !important;
+    clip-path: none !important;
+  }
+
+  .rbVictimTile222.rbVictimTileHasImage228::after,
+  .rbVictimTile221.rbVictimTileHasImage228::after,
+  .rbVictimTile220.rbVictimTileHasImage228::after {
+    display: none !important;
+  }
+
+  /* 数字と家と盗賊バッジは画像の上に出す */
+  .rbVictimTileWrap222 .rbVictimNumber222,
+  .rbVictimTileWrap222 .rbVictimHouse222,
+  .rbVictimTileWrap222 .rbVictimRobberBadge222 {
+    z-index: 10;
+  }
+</style>
+
+<script>
+(function(){
+  function forceTileImageMode228() {
+    const tile =
+      document.getElementById("rbVictimTile222") ||
+      document.getElementById("rbVictimTile221") ||
+      document.getElementById("rbVictimTile220");
+
+    if (!tile) return;
+
+    const img =
+      tile.style.getPropertyValue("--rbTileImage222") ||
+      tile.style.getPropertyValue("--rbTileImage221") ||
+      tile.style.getPropertyValue("--rbTileImage220");
+
+    if (img && img !== "none" && img.includes("url(")) {
+      tile.classList.add("rbVictimTileHasImage228");
+    } else {
+      tile.classList.remove("rbVictimTileHasImage228");
+    }
+  }
+
+  // 既存の表示関数が動いた後に、必ず画像モードへ切り替える
+  ["222","221","220","219","218","215"].forEach(suffix => {
+    const name = "showRobberVictimNotice" + suffix;
+    const original = window[name];
+    if (typeof original === "function" && !original.__tileBgFix228) {
+      const wrapped = function() {
+        const result = original.apply(this, arguments);
+        setTimeout(forceTileImageMode228, 30);
+        setTimeout(forceTileImageMode228, 120);
+        return result;
+      };
+      wrapped.__tileBgFix228 = true;
+      window[name] = wrapped;
+    }
+  });
+
+  // 表示中に別処理で戻されても復元
+  setInterval(() => {
+    const overlay =
+      document.getElementById("rbVictimOverlay222") ||
+      document.getElementById("rbVictimOverlay221") ||
+      document.getElementById("rbVictimOverlay220");
+    if (!overlay) return;
+    if (overlay.style.display === "none" || getComputedStyle(overlay).display === "none") return;
+    forceTileImageMode228();
+  }, 300);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", forceTileImageMode228);
+  } else {
+    forceTileImageMode228();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_TILE_BG_FIX_V228_END -->
 
 </body>
 </html>
