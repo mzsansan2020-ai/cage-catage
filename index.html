@@ -3348,6 +3348,21 @@ let robberTileIndex = null;
 let robberMode = false;
 let pendingRobberSteal = false;
 let pendingRobberPlayer = null;
+
+// v225: 被害UI用。盤面タイル情報を外部UIから安全に読むための読み取り専用ブリッジ。
+window.__getRobberVictimTileInfo = function(tileIndex) {
+  const i = Number(tileIndex);
+  const resource = Array.isArray(deck) ? deck[i] : null;
+  const number = Array.isArray(numbers) ? numbers[i] : null;
+  const imageSrc = resource && imageData && imageData[resource] ? imageData[resource] : "";
+  return {
+    tileIndex: i,
+    resource: resource || "",
+    number: number === null || number === undefined ? "" : number,
+    imageSrc: imageSrc
+  };
+};
+
 let winnerText = '';
 let longestRoadOwner = null;
 let largestArmyOwner = null;
@@ -11742,6 +11757,150 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_VICTIM_DYNAMIC_TILE_FIX_V224_END -->
+
+
+<!-- ROBBER_VICTIM_TILE_BRIDGE_V225_START -->
+<script>
+(function(){
+  const TILE_STYLES_225 = {
+    forest: { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    wood:   { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    brick:  { bg: "linear-gradient(135deg,#9b4c22,#c77932 55%,#7f361c)" },
+    sheep:  { bg: "linear-gradient(135deg,#5aa84f,#b6d76b 55%,#67b957)" },
+    wheat:  { bg: "linear-gradient(135deg,#c49025,#e3c85a 58%,#b77b1f)" },
+    ore:    { bg: "linear-gradient(135deg,#4d4d4d,#8b8b8b 52%,#2e2e2e)" },
+    desert: { bg: "linear-gradient(135deg,#c7964f,#ecd08a 55%,#b67f3d)" }
+  };
+
+  const COLORS_225 = {
+    red:    { label:'赤', pawn:'#d42626', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)' },
+    blue:   { label:'青', pawn:'#1d78d2', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)' },
+    green:  { label:'緑', pawn:'#2e9439', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)' },
+    yellow: { label:'黄', pawn:'#e0ad22', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)' }
+  };
+
+  function key225(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function color225(player) {
+    return COLORS_225[key225(player)] || COLORS_225.red;
+  }
+
+  function name225(player) {
+    try {
+      if (typeof getPlayerName === "function") return getPlayerName(player);
+    } catch(e) {}
+    return color225(player).label;
+  }
+
+  function normalizeResource225(resource) {
+    const map = {
+      wood: "forest",
+      forest: "forest",
+      "木": "forest",
+      brick: "brick",
+      clay: "brick",
+      "粘土": "brick",
+      sheep: "sheep",
+      wool: "sheep",
+      "羊": "sheep",
+      wheat: "wheat",
+      grain: "wheat",
+      "麦": "wheat",
+      ore: "ore",
+      stone: "ore",
+      rock: "ore",
+      "石": "ore",
+      desert: "desert",
+      "砂漠": "desert"
+    };
+    const raw = String(resource || "").trim();
+    return map[raw] || map[raw.toLowerCase()] || raw.toLowerCase() || "forest";
+  }
+
+  function getTileInfo225(tileIndex) {
+    if (typeof window.__getRobberVictimTileInfo === "function") {
+      const info = window.__getRobberVictimTileInfo(tileIndex);
+      return {
+        resource: normalizeResource225(info.resource),
+        number: info.number === "" ? "?" : info.number,
+        imageSrc: info.imageSrc || ""
+      };
+    }
+
+    return { resource: "forest", number: "?", imageSrc: "" };
+  }
+
+  function renderVictim225(attackerPlayer, victimPlayer, tileIndex) {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const modal = document.getElementById("rbVictimModal222");
+    if (!overlay || !modal) return;
+
+    const attacker = color225(attackerPlayer);
+    const victim = color225(victimPlayer);
+    const tileInfo = getTileInfo225(tileIndex);
+    const style = TILE_STYLES_225[tileInfo.resource] || TILE_STYLES_225.forest;
+
+    modal.style.setProperty("--rbVictimAccent222", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark222", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow222", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn222", victim.pawn);
+
+    const tileEl = document.getElementById("rbVictimTile222");
+    const numEl = document.getElementById("rbVictimNumber222");
+    const nameEl = document.getElementById("rbVictimPlayerName222");
+
+    if (tileEl) {
+      tileEl.style.setProperty("--rbTileBg222", style.bg);
+      tileEl.style.setProperty("--rbTileImage222", tileInfo.imageSrc ? 'url("' + tileInfo.imageSrc + '")' : "none");
+    }
+    if (numEl) numEl.textContent = tileInfo.number;
+    if (nameEl) nameEl.textContent = victim.label + "の" + name225(victimPlayer);
+
+    if (typeof log === "function") {
+      log("被害UI表示：tile=" + tileIndex + " resource=" + tileInfo.resource + " number=" + tileInfo.number + (tileInfo.imageSrc ? " image=OK" : " image=なし"));
+    }
+
+    overlay.style.display = "flex";
+  }
+
+  window.showRobberVictimNotice222 = renderVictim225;
+  window.showRobberVictimNotice221 = renderVictim225;
+  window.showRobberVictimNotice220 = renderVictim225;
+  window.showRobberVictimNotice219 = renderVictim225;
+  window.showRobberVictimNotice218 = renderVictim225;
+  window.showRobberVictimNotice215 = renderVictim225;
+
+  function fixButton225() {
+    const btn =
+      document.getElementById("robberVictimTestBtn222") ||
+      document.getElementById("robberVictimTestBtn221") ||
+      document.getElementById("robberVictimTestBtn220") ||
+      document.getElementById("robberVictimTestBtn219") ||
+      document.getElementById("robberVictimTestBtn218") ||
+      document.getElementById("robberVictimTestBtn217");
+
+    if (!btn) return;
+    btn.onclick = function() {
+      let self = 1;
+      try {
+        if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+      } catch(e) {}
+      const attacker = self === 0 ? 1 : 0;
+      const tile = (typeof robberTileIndex !== "undefined" && robberTileIndex !== null) ? robberTileIndex : 0;
+      renderVictim225(attacker, self, tile);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fixButton225);
+  } else {
+    fixButton225();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_TILE_BRIDGE_V225_END -->
 
 </body>
 </html>
