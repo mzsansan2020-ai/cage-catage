@@ -8108,6 +8108,16 @@ function renderRobberQueueWaiting(currentPlayer) {
     }, { merge: true });
   };
 
+
+  window.firebasePublishRobberLootNotice = async function(notice) {
+    await setDoc(boardRef, {
+      robberLootNotice: notice,
+      roomId: currentRoomIdForFirebase,
+      updatedByClientId: clientId,
+      cloudUpdatedAt: Date.now()
+    }, { merge: true });
+  };
+
   window.firebaseLoadBoard = async function() {
     const snap = await getDoc(boardRef);
     return snap.exists() ? snap.data() : null;
@@ -10479,6 +10489,970 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_VICTIM_SYNC_V216_END -->
+
+
+<!-- ROBBER_VICTIM_SYNC_FIX_V217_START -->
+<script>
+(function(){
+  let lastRobberLootNoticeId217 = null;
+
+  const RB_COLORS_217 = {
+    red:    { label:'赤', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)', pawn:'#d42626' },
+    blue:   { label:'青', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)', pawn:'#1d78d2' },
+    green:  { label:'緑', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)', pawn:'#2e9439' },
+    yellow: { label:'黄', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)', pawn:'#e0ad22' }
+  };
+
+  function colorKey217(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function color217(playerOrKey) {
+    const key = typeof playerOrKey === "string" ? playerOrKey : colorKey217(playerOrKey);
+    return RB_COLORS_217[key] || RB_COLORS_217.red;
+  }
+
+  function publishRobberLootNotice217(notice) {
+    if (typeof window.firebasePublishRobberLootNotice === "function") {
+      window.firebasePublishRobberLootNotice(notice).catch(err => {
+        console.error("robberLootNotice publish failed", err);
+        if (typeof log === "function") log("盗賊被害UIの同期に失敗しました。");
+      });
+    }
+  }
+
+  function renderAttackerLootUi217(tileIndex, movingPlayer, candidates) {
+    const overlay = document.getElementById("rbLootOverlay207");
+    const modal = document.getElementById("rbLootModal207");
+    const toast = document.getElementById("rbToast207");
+    const lead = document.getElementById("rbLootLead207");
+    const targetsPanel = document.getElementById("rbLootTargets207");
+    const emptyPanel = document.getElementById("rbLootEmpty207");
+    const list = document.getElementById("rbLootList207");
+
+    if (!overlay || !modal || !lead || !targetsPanel || !emptyPanel || !list) return;
+
+    const active = color217(movingPlayer);
+    modal.style.setProperty("--rbAccent", active.accent);
+    modal.style.setProperty("--rbAccentDark", active.dark);
+    modal.style.setProperty("--rbGlow", active.glow);
+    if (toast) {
+      toast.style.setProperty("--rbAccent", active.accent);
+      toast.style.setProperty("--rbAccentDark", active.dark);
+      toast.style.setProperty("--rbGlow", active.glow);
+    }
+
+    lead.textContent = active.label + "の盗賊が資源を奪います";
+
+    if (!candidates || !candidates.length) {
+      targetsPanel.style.display = "none";
+      emptyPanel.style.display = "block";
+      overlay.style.display = "flex";
+      return;
+    }
+
+    targetsPanel.style.display = "block";
+    emptyPanel.style.display = "none";
+
+    list.innerHTML = candidates.map(p => {
+      const c = color217(p);
+      const count = (typeof getTotalResourceCount === "function") ? getTotalResourceCount(p) : 0;
+      return `
+        <div class="rbLootRow207">
+          <div class="rbPawn207" style="--pawn:${c.pawn}"></div>
+          <div>
+            <div class="rbLootName207">${c.label}　${escapeHtml(getPlayerName(p))}</div>
+            <div class="rbLootResource207">資源：${count}枚</div>
+          </div>
+          <button type="button" class="rbLootBtn207" onclick="robberLootUiSteal214(${p})">奪う</button>
+        </div>
+      `;
+    }).join("");
+
+    overlay.style.display = "flex";
+  }
+
+  function processRobberLootNotice217(notice) {
+    if (!notice || !notice.active) {
+      if (typeof hideRobberVictimNotice215 === "function") hideRobberVictimNotice215();
+      return;
+    }
+
+    if (notice.id && notice.id === lastRobberLootNoticeId217) return;
+    lastRobberLootNoticeId217 = notice.id || String(Date.now());
+
+    const self = (typeof getSelfPlayer === "function") ? getSelfPlayer() : null;
+    if (self === null || Number.isNaN(Number(self))) return;
+
+    const movingPlayer = Number(notice.movingPlayer);
+    const tileIndex = Number(notice.tileIndex);
+    const candidates = Array.isArray(notice.candidates) ? notice.candidates.map(Number) : [];
+
+    if (Number(self) === movingPlayer) {
+      if (typeof hideRobberVictimNotice215 === "function") hideRobberVictimNotice215();
+      renderAttackerLootUi217(tileIndex, movingPlayer, candidates);
+      return;
+    }
+
+    if (candidates.includes(Number(self))) {
+      if (typeof showRobberVictimNotice215 === "function") {
+        showRobberVictimNotice215(movingPlayer, Number(self));
+      }
+      return;
+    }
+
+    if (typeof hideRobberVictimNotice215 === "function") hideRobberVictimNotice215();
+  }
+
+  // Re-wrap realtime board application so connected browsers process the new notice.
+  function installRealtimeWrapper217() {
+    if (window.__robberRealtimeWrapped217) return;
+    if (typeof window.applyRealtimeBoardData !== "function") return;
+
+    const originalApply = window.applyRealtimeBoardData;
+    window.__robberRealtimeWrapped217 = true;
+
+    window.applyRealtimeBoardData = function(data) {
+      originalApply(data);
+      if (data && data.robberLootNotice) {
+        processRobberLootNotice217(data.robberLootNotice);
+      }
+    };
+  }
+
+  const installTimer217 = setInterval(() => {
+    if (typeof window.applyRealtimeBoardData === "function") {
+      clearInterval(installTimer217);
+      installRealtimeWrapper217();
+    }
+  }, 300);
+
+  // Replace the v215/v216 after-move handler with a clean synced version.
+  window.showRobberLootAfterMovePreview212 = function(tileIndex, movingPlayer) {
+    const candidates = (typeof getPlayersAdjacentToTile === "function")
+      ? getPlayersAdjacentToTile(tileIndex, movingPlayer)
+      : [];
+
+    const notice = {
+      id: Date.now() + "_" + Math.random().toString(36).slice(2),
+      active: true,
+      tileIndex: tileIndex,
+      movingPlayer: movingPlayer,
+      candidates: candidates,
+      createdAt: Date.now()
+    };
+
+    publishRobberLootNotice217(notice);
+    processRobberLootNotice217(notice);
+  };
+
+  // Close victim-side notice after stealing is completed.
+  const originalSteal214 = window.robberLootUiSteal214;
+  if (typeof originalSteal214 === "function" && !window.__robberStealWrapped217) {
+    window.__robberStealWrapped217 = true;
+    window.robberLootUiSteal214 = function(targetPlayer) {
+      const result = originalSteal214(targetPlayer);
+
+      publishRobberLootNotice217({
+        id: Date.now() + "_done",
+        active: false,
+        completedAt: Date.now()
+      });
+
+      if (typeof hideRobberVictimNotice215 === "function") hideRobberVictimNotice215();
+      return result;
+    };
+  }
+
+  // Add visible test button for the victim UI.
+  function addVictimTestButton217() {
+    const panel = document.getElementById("robberTestPanel207") || document.getElementById("robberUiTestPanelV205");
+    if (!panel || document.getElementById("robberVictimTestBtn217")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "robberVictimTestBtn217";
+    btn.type = "button";
+    btn.textContent = "被害UI";
+    btn.onclick = function() {
+      const self = (typeof getSelfPlayer === "function") ? getSelfPlayer() : 1;
+      const attacker = self === 0 ? 1 : 0;
+      if (typeof showRobberVictimNotice215 === "function") {
+        showRobberVictimNotice215(attacker, self);
+      }
+    };
+
+    panel.appendChild(btn);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", addVictimTestButton217);
+  } else {
+    addVictimTestButton217();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_SYNC_FIX_V217_END -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ROBBER_VICTIM_FINAL_V222_START -->
+<style>
+  #rbVictimOverlay222 {
+    position: fixed;
+    inset: 0;
+    z-index: 120000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.58);
+    backdrop-filter: blur(2px);
+  }
+
+  #rbVictimModal222 {
+    width: 820px;
+    max-width: calc(100vw - 34px);
+    border-radius: 18px;
+    overflow: hidden;
+    background: #f4dfb3;
+    border: 4px solid #6b340f;
+    color: #2b1a0c;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,236,176,.65),
+      0 24px 58px rgba(0,0,0,.64),
+      0 0 28px var(--rbVictimGlow222, rgba(255,50,50,.48));
+    font-family: inherit;
+    animation: rbVictimPop222 .18s ease-out;
+  }
+
+  .rbVictimHeader222 {
+    position: relative;
+    min-height: 96px;
+    padding: 20px 70px 15px 178px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,0) 44%),
+      radial-gradient(circle at 13% 70%, rgba(255, 92, 31, .35), transparent 24%),
+      linear-gradient(90deg, #b70f0f 0%, #a90f0f 45%, #7b0d09 74%, #350604 100%);
+    border-bottom: 4px solid #5d210b;
+    color: #fff5d5;
+    text-shadow: 0 3px 2px rgba(0,0,0,.78);
+  }
+
+  .rbVictimHeader222::before {
+    content: "!";
+    position: absolute;
+    left: 22px;
+    top: 42px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    transform: rotate(45deg);
+    border-radius: 8px;
+    border: 3px solid #e0b866;
+    background: linear-gradient(#c92323, #8d0c0c);
+    color: #fff3cf;
+    font-size: 30px;
+    font-weight: 1000;
+    box-shadow: 0 4px 9px rgba(0,0,0,.35);
+    text-shadow: none;
+  }
+
+  .rbVictimHeader222::after {
+    content: "✦";
+    position: absolute;
+    right: 76px;
+    top: 35px;
+    font-size: 20px;
+    color: rgba(255,226,145,.92);
+  }
+
+  #rbVictimIcon222 {
+    position: absolute;
+    left: 72px;
+    top: -8px;
+    width: 122px;
+    height: 122px;
+    object-fit: contain;
+    filter:
+      drop-shadow(0 0 16px rgba(255,54,36,.62))
+      drop-shadow(0 8px 13px rgba(0,0,0,.72));
+  }
+
+  .rbVictimTitle222 {
+    font-size: 35px;
+    font-weight: 1000;
+    letter-spacing: .025em;
+    line-height: 1.25;
+  }
+
+  .rbVictimClose222 {
+    position: absolute;
+    right: 17px;
+    top: 25px;
+    width: 47px;
+    height: 47px;
+    border-radius: 12px;
+    border: 3px solid rgba(255,219,145,.62);
+    background: rgba(74,10,5,.58);
+    color: #ffdfaa;
+    font-size: 34px;
+    font-weight: 1000;
+    line-height: 34px;
+    cursor: pointer;
+    box-shadow: inset 0 1px rgba(255,255,255,.18);
+  }
+
+  .rbVictimBody222 {
+    padding: 27px 43px 30px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,252,228,.96), transparent 48%),
+      linear-gradient(180deg, rgba(255,255,255,.54), rgba(255,255,255,.08)),
+      repeating-linear-gradient(135deg, rgba(120,80,30,.035) 0 2px, transparent 2px 7px),
+      #f2d9a8;
+    text-align: center;
+  }
+
+  .rbVictimLead222 {
+    margin: 0 0 22px;
+    font-size: 22px;
+    font-weight: 1000;
+    color: #241407;
+  }
+
+  .rbVictimVisual222 {
+    display: grid;
+    grid-template-columns: 290px 90px 1fr;
+    align-items: center;
+    gap: 22px;
+    margin: 0 auto 24px;
+  }
+
+  .rbVictimTileWrap222 {
+    position: relative;
+    width: 282px;
+    height: 244px;
+    margin: auto;
+  }
+
+  .rbVictimTile222 {
+    position: absolute;
+    left: 34px;
+    top: 14px;
+    width: 210px;
+    height: 190px;
+    clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
+    background:
+      var(--rbTileImage222, none),
+      radial-gradient(circle at 52% 52%, rgba(255,255,255,.24), transparent 32%),
+      var(--rbTileBg222, linear-gradient(135deg,#4c9b3e,#9bd05c 54%,#3a802d));
+    background-size: cover;
+    background-position: center;
+    border: 5px solid #d5ad63;
+    box-shadow:
+      0 10px 14px rgba(0,0,0,.26),
+      inset 0 0 0 2px rgba(255,255,255,.23);
+  }
+
+  .rbVictimTile222::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%);
+    border: 2px solid rgba(255,255,255,.34);
+    pointer-events: none;
+  }
+
+  .rbVictimRobberBadge222 {
+    position: absolute;
+    left: 20px;
+    top: 28px;
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 25%, #3f3f3f, #111 62%, #050505);
+    color: #fff;
+    border: 5px solid #fff;
+    box-shadow: 0 5px 10px rgba(0,0,0,.46);
+    font-size: 30px;
+    font-weight: 1000;
+    z-index: 5;
+  }
+
+  .rbVictimNumber222 {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 35% 30%, #fff7d8, #f1d196 75%);
+    border: 5px solid #b98b47;
+    color: #2d1a0d;
+    font-size: 38px;
+    font-weight: 1000;
+    box-shadow: 0 4px 8px rgba(0,0,0,.24);
+    z-index: 4;
+  }
+
+  .rbVictimHouse222 {
+    position: absolute;
+    right: 25px;
+    bottom: 18px;
+    width: 50px;
+    height: 50px;
+    background: var(--rbVictimPawn222,#1d78d2);
+    clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
+    border: 3px solid rgba(0,0,0,.28);
+    filter: drop-shadow(0 3px 3px rgba(0,0,0,.38));
+    z-index: 5;
+  }
+
+  .rbVictimArrow222 {
+    width: 86px;
+    height: 66px;
+    position: relative;
+    margin: auto;
+  }
+
+  .rbVictimArrow222::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 23px;
+    width: 54px;
+    height: 18px;
+    border-radius: 4px;
+    background: linear-gradient(#dba34a,#9e631a);
+    border: 2px solid #805214;
+  }
+
+  .rbVictimArrow222::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 9px;
+    width: 0;
+    height: 0;
+    border-top: 22px solid transparent;
+    border-bottom: 22px solid transparent;
+    border-left: 32px solid #b87522;
+    filter: drop-shadow(1px 1px 0 #805214);
+  }
+
+  .rbVictimPlayerCard222 {
+    min-height: 190px;
+    padding: 20px 24px;
+    border-radius: 17px;
+    border: 4px solid rgba(177,41,30,.74);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,.20)),
+      #f8ebca;
+    box-shadow:
+      inset 0 1px rgba(255,255,255,.76),
+      0 4px 8px rgba(0,0,0,.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .rbVictimAvatar222 {
+    width: 86px;
+    height: 88px;
+    margin: 0 auto 8px;
+    position: relative;
+  }
+
+  .rbVictimAvatar222::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 3px;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--rbVictimPawn222,#1d78d2);
+    border: 3px solid rgba(0,0,0,.28);
+    box-shadow: inset 0 8px 10px rgba(255,255,255,.28), inset 0 -8px 9px rgba(0,0,0,.20);
+  }
+
+  .rbVictimAvatar222::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 1px;
+    transform: translateX(-50%);
+    width: 77px;
+    height: 47px;
+    border-radius: 50% 50% 42% 42%;
+    background: var(--rbVictimPawn222,#1d78d2);
+    border: 3px solid rgba(0,0,0,.28);
+    box-shadow: inset 0 8px 10px rgba(255,255,255,.20), inset 0 -8px 9px rgba(0,0,0,.20);
+  }
+
+  #rbVictimPlayerName222 {
+    font-size: 20px;
+    font-weight: 1000;
+    color: #2d1a0d;
+    margin-bottom: 10px;
+  }
+
+  .rbVictimCardDivider222 {
+    width: 82%;
+    height: 2px;
+    margin: 0 auto 13px;
+    background: linear-gradient(90deg, transparent, #c28d33 46%, transparent);
+    position: relative;
+  }
+
+  .rbVictimCardDivider222::after {
+    content: "◇";
+    position: absolute;
+    left: 50%;
+    top: -11px;
+    transform: translateX(-50%);
+    color: #c28d33;
+    font-size: 22px;
+    font-weight: 1000;
+  }
+
+  .rbVictimThreatText222 {
+    font-size: 22px;
+    font-weight: 1000;
+    color: #9f1111;
+    line-height: 1.48;
+  }
+
+  .rbVictimNoticeLine222 {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    align-items: center;
+    gap: 13px;
+    margin: 0 auto 20px;
+    padding: 13px 16px;
+    border-radius: 12px;
+    border: 3px solid rgba(205,154,55,.62);
+    background: rgba(255,244,209,.92);
+    text-align: left;
+    font-size: 17px;
+    font-weight: 900;
+    color: #3f2a14;
+  }
+
+  .rbVictimAlertIcon222 {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(#f6c135,#c28105);
+    color: #fff;
+    border: 2px solid #9c6909;
+    font-size: 28px;
+    font-weight: 1000;
+    text-shadow: 0 1px 1px rgba(0,0,0,.30);
+  }
+
+  .rbVictimButton222 {
+    min-width: 180px;
+    height: 48px;
+    border-radius: 12px;
+    border: 3px solid rgba(128,80,32,.60);
+    background: linear-gradient(#fff6d8,#e1ba74);
+    color: #2b190d;
+    font-size: 20px;
+    font-weight: 1000;
+    cursor: pointer;
+    box-shadow: inset 0 1px rgba(255,255,255,.74), 0 3px 0 rgba(88,51,18,.20);
+  }
+
+  @keyframes rbVictimPop222 {
+    from { opacity: 0; transform: translateY(8px) scale(.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+</style>
+
+<div id="rbVictimOverlay222">
+  <div id="rbVictimModal222">
+    <div class="rbVictimHeader222">
+      <img id="rbVictimIcon222" alt="盗賊" src="data:image/png;base64,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">
+      <div class="rbVictimTitle222">資源が奪われる可能性があります</div>
+      <button type="button" class="rbVictimClose222" onclick="hideRobberVictimNotice222()">×</button>
+    </div>
+
+    <div class="rbVictimBody222">
+      <p class="rbVictimLead222">盗賊があなたのいるタイルに移動しました。</p>
+
+      <div class="rbVictimVisual222">
+        <div class="rbVictimTileWrap222">
+          <div id="rbVictimTile222" class="rbVictimTile222"></div>
+          <div class="rbVictimRobberBadge222">盗</div>
+          <div id="rbVictimNumber222" class="rbVictimNumber222">?</div>
+          <div class="rbVictimHouse222"></div>
+        </div>
+
+        <div class="rbVictimArrow222"></div>
+
+        <div class="rbVictimPlayerCard222">
+          <div class="rbVictimAvatar222"></div>
+          <div id="rbVictimPlayerName222">対象プレイヤー名</div>
+          <div class="rbVictimCardDivider222"></div>
+          <div class="rbVictimThreatText222">
+            あなたから資源を奪う<br>可能性があります
+          </div>
+        </div>
+      </div>
+
+      <div class="rbVictimNoticeLine222">
+        <div class="rbVictimAlertIcon222">!</div>
+        <div>相手が選ぶまで、資源が奪われる可能性があります。</div>
+      </div>
+
+      <button type="button" class="rbVictimButton222" onclick="hideRobberVictimNotice222()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const COLORS222 = {
+    red:    { label:'赤', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)', pawn:'#d42626' },
+    blue:   { label:'青', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)', pawn:'#1d78d2' },
+    green:  { label:'緑', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)', pawn:'#2e9439' },
+    yellow: { label:'黄', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)', pawn:'#e0ad22' }
+  };
+
+  const TILE_STYLES222 = {
+    forest: { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    wood:   { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    brick:  { bg: "linear-gradient(135deg,#9b4c22,#c77932 55%,#7f361c)" },
+    sheep:  { bg: "linear-gradient(135deg,#5aa84f,#b6d76b 55%,#67b957)" },
+    wheat:  { bg: "linear-gradient(135deg,#c49025,#e3c85a 58%,#b77b1f)" },
+    ore:    { bg: "linear-gradient(135deg,#4d4d4d,#8b8b8b 52%,#2e2e2e)" },
+    desert: { bg: "linear-gradient(135deg,#c7964f,#ecd08a 55%,#b67f3d)" }
+  };
+
+  function key222(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function color222(player) {
+    return COLORS222[key222(player)] || COLORS222.red;
+  }
+
+  function playerName222(player) {
+    try {
+      if (typeof getPlayerName === "function") return getPlayerName(player);
+    } catch(e) {}
+    return color222(player).label;
+  }
+
+  function getTileObj222(tileIndex) {
+    try {
+      if (typeof tiles !== "undefined" && tiles[tileIndex]) return tiles[tileIndex];
+      if (typeof boardTiles !== "undefined" && boardTiles[tileIndex]) return boardTiles[tileIndex];
+    } catch(e) {}
+    return null;
+  }
+
+  function getTileResource222(tileIndex) {
+    const tile = getTileObj222(tileIndex);
+    if (!tile) return "forest";
+    return tile.resource || tile.type || tile.kind || "forest";
+  }
+
+  function getTileNumber222(tileIndex) {
+    try {
+      if (typeof numbers !== "undefined" && numbers[tileIndex] !== undefined) return numbers[tileIndex];
+      if (typeof tileNumbers !== "undefined" && tileNumbers[tileIndex] !== undefined) return tileNumbers[tileIndex];
+      const tile = getTileObj222(tileIndex);
+      if (tile) return tile.number || tile.num || tile.dice || "?";
+    } catch(e) {}
+    return "?";
+  }
+
+  function getAssetTileImage222(resource) {
+    try {
+      if (typeof tileImages !== "undefined") {
+        if (tileImages[resource] && tileImages[resource].src) return tileImages[resource].src;
+        if (resource === "wood" && tileImages.forest && tileImages.forest.src) return tileImages.forest.src;
+        if (resource === "forest" && tileImages.wood && tileImages.wood.src) return tileImages.wood.src;
+      }
+    } catch(e) {}
+    return "";
+  }
+
+  window.showRobberVictimNotice222 = function(attackerPlayer, victimPlayer, tileIndex) {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const modal = document.getElementById("rbVictimModal222");
+    if (!overlay || !modal) return;
+
+    const attacker = color222(attackerPlayer);
+    const victim = color222(victimPlayer);
+
+    modal.style.setProperty("--rbVictimAccent222", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark222", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow222", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn222", victim.pawn);
+
+    const resource = getTileResource222(tileIndex);
+    const style = TILE_STYLES222[resource] || TILE_STYLES222.forest;
+    const tile = document.getElementById("rbVictimTile222");
+    const num = document.getElementById("rbVictimNumber222");
+    const name = document.getElementById("rbVictimPlayerName222");
+
+    if (tile) {
+      tile.style.setProperty("--rbTileBg222", style.bg);
+      const imageSrc = getAssetTileImage222(resource);
+      tile.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+    }
+    if (num) num.textContent = getTileNumber222(tileIndex);
+    if (name) name.textContent = victim.label + "の" + playerName222(victimPlayer);
+
+    overlay.style.display = "flex";
+  };
+
+  window.hideRobberVictimNotice222 = function() {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    if (overlay) overlay.style.display = "none";
+  };
+
+  // 旧関数名からも新UIを呼ぶ
+  window.showRobberVictimNotice215 = function(attackerPlayer, victimPlayer, tileIndex) {
+    window.showRobberVictimNotice222(attackerPlayer, victimPlayer, tileIndex);
+  };
+  window.showRobberVictimNotice218 = function(attackerPlayer, victimPlayer, tileIndex) {
+    window.showRobberVictimNotice222(attackerPlayer, victimPlayer, tileIndex);
+  };
+  window.showRobberVictimNotice219 = function(attackerPlayer, victimPlayer, tileIndex) {
+    window.showRobberVictimNotice222(attackerPlayer, victimPlayer, tileIndex);
+  };
+  window.showRobberVictimNotice220 = function(attackerPlayer, victimPlayer, tileIndex) {
+    window.showRobberVictimNotice222(attackerPlayer, victimPlayer, tileIndex);
+  };
+  window.showRobberVictimNotice221 = function(attackerPlayer, victimPlayer, tileIndex) {
+    window.showRobberVictimNotice222(attackerPlayer, victimPlayer, tileIndex);
+  };
+  window.hideRobberVictimNotice215 = window.hideRobberVictimNotice222;
+  window.hideRobberVictimNotice218 = window.hideRobberVictimNotice222;
+  window.hideRobberVictimNotice219 = window.hideRobberVictimNotice222;
+  window.hideRobberVictimNotice220 = window.hideRobberVictimNotice222;
+  window.hideRobberVictimNotice221 = window.hideRobberVictimNotice222;
+
+  function installVictimButton222() {
+    const panel = document.getElementById("robberTestPanel207") || document.getElementById("robberUiTestPanelV205");
+    if (!panel) return;
+
+    let btn = document.getElementById("robberVictimTestBtn221") || document.getElementById("robberVictimTestBtn220") || document.getElementById("robberVictimTestBtn219") || document.getElementById("robberVictimTestBtn218") || document.getElementById("robberVictimTestBtn217");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "robberVictimTestBtn222";
+      btn.type = "button";
+      btn.textContent = "被害UI";
+      panel.appendChild(btn);
+    }
+    btn.onclick = function() {
+      let self = 1;
+      try {
+        if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+      } catch(e) {}
+      const attacker = self === 0 ? 1 : 0;
+      window.showRobberVictimNotice222(attacker, self, typeof robberTileIndex !== "undefined" ? robberTileIndex : 0);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", installVictimButton222);
+  } else {
+    installVictimButton222();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_FINAL_V222_END -->
+
+
+<!-- ROBBER_VICTIM_CONNECT_V223_START -->
+<script>
+(function(){
+  let lastRobberLootNoticeId223 = null;
+
+  function getSelfPlayer223() {
+    try {
+      if (typeof getSelfPlayer === "function") return Number(getSelfPlayer());
+    } catch(e) {}
+    return null;
+  }
+
+  function getCandidates223(tileIndex, movingPlayer) {
+    try {
+      if (typeof getPlayersAdjacentToTile === "function") {
+        return getPlayersAdjacentToTile(tileIndex, movingPlayer).map(Number);
+      }
+    } catch(e) {}
+    return [];
+  }
+
+  function publishRobberLootNotice223(notice) {
+    if (typeof window.firebasePublishRobberLootNotice === "function") {
+      window.firebasePublishRobberLootNotice(notice).catch(err => {
+        console.error("robberLootNotice publish failed", err);
+        if (typeof log === "function") log("盗賊被害UIの同期に失敗しました。");
+      });
+    }
+  }
+
+  function showVictimUi223(movingPlayer, victimPlayer, tileIndex) {
+    if (typeof showRobberVictimNotice222 === "function") {
+      showRobberVictimNotice222(movingPlayer, victimPlayer, tileIndex);
+    }
+  }
+
+  function hideVictimUi223() {
+    if (typeof hideRobberVictimNotice222 === "function") {
+      hideRobberVictimNotice222();
+    }
+  }
+
+  function processRobberLootNotice223(notice) {
+    if (!notice || !notice.active) {
+      hideVictimUi223();
+      return;
+    }
+
+    if (notice.id && notice.id === lastRobberLootNoticeId223) return;
+    lastRobberLootNoticeId223 = notice.id || String(Date.now());
+
+    const self = getSelfPlayer223();
+    if (self === null || Number.isNaN(self)) return;
+
+    const movingPlayer = Number(notice.movingPlayer);
+    const tileIndex = Number(notice.tileIndex);
+    const candidates = Array.isArray(notice.candidates) ? notice.candidates.map(Number) : [];
+
+    if (self === movingPlayer) {
+      hideVictimUi223();
+      return;
+    }
+
+    if (candidates.includes(self)) {
+      showVictimUi223(movingPlayer, self, tileIndex);
+    } else {
+      hideVictimUi223();
+    }
+  }
+
+  // 盗賊移動直後：対象者側へ通知する情報をFirebaseへ出す。
+  // 奪う側の略奪UI表示は既存処理をそのまま使う。
+  const originalAfterMove223 = window.showRobberLootAfterMovePreview212;
+  window.showRobberLootAfterMovePreview212 = function(tileIndex, movingPlayer) {
+    const candidates = getCandidates223(tileIndex, movingPlayer);
+
+    const notice = {
+      id: Date.now() + "_" + Math.random().toString(36).slice(2),
+      active: true,
+      tileIndex: Number(tileIndex),
+      movingPlayer: Number(movingPlayer),
+      candidates: candidates,
+      createdAt: Date.now()
+    };
+
+    publishRobberLootNotice223(notice);
+    processRobberLootNotice223(notice);
+
+    if (typeof originalAfterMove223 === "function") {
+      return originalAfterMove223(tileIndex, movingPlayer);
+    }
+  };
+
+  // Firebaseのリアルタイム更新を受けたとき、被害UI用noticeも処理する。
+  const installApplyWrapper223 = function() {
+    if (window.__robberVictimApplyWrapped223) return;
+    if (typeof window.applyRealtimeBoardData !== "function") return;
+
+    const originalApply = window.applyRealtimeBoardData;
+    window.__robberVictimApplyWrapped223 = true;
+
+    window.applyRealtimeBoardData = function(data) {
+      const result = originalApply(data);
+      if (data && data.robberLootNotice) {
+        processRobberLootNotice223(data.robberLootNotice);
+      }
+      return result;
+    };
+  };
+
+  const timer223 = setInterval(() => {
+    if (typeof window.applyRealtimeBoardData === "function") {
+      clearInterval(timer223);
+      installApplyWrapper223();
+    }
+  }, 250);
+
+  // 略奪完了時：対象者側の被害UIを閉じる。
+  const originalSteal223 = window.robberLootUiSteal214;
+  if (typeof originalSteal223 === "function" && !window.__robberLootStealWrapped223) {
+    window.__robberLootStealWrapped223 = true;
+
+    window.robberLootUiSteal214 = function(targetPlayer) {
+      const result = originalSteal223(targetPlayer);
+
+      publishRobberLootNotice223({
+        id: Date.now() + "_done",
+        active: false,
+        completedAt: Date.now()
+      });
+
+      hideVictimUi223();
+      return result;
+    };
+  }
+
+  // テストボタンも本番UIを呼ぶ。
+  function fixVictimTestButton223() {
+    const btn =
+      document.getElementById("robberVictimTestBtn222") ||
+      document.getElementById("robberVictimTestBtn221") ||
+      document.getElementById("robberVictimTestBtn220") ||
+      document.getElementById("robberVictimTestBtn219") ||
+      document.getElementById("robberVictimTestBtn218") ||
+      document.getElementById("robberVictimTestBtn217");
+
+    if (!btn) return;
+
+    btn.onclick = function() {
+      let self = getSelfPlayer223();
+      if (self === null || Number.isNaN(self)) self = 1;
+      const attacker = self === 0 ? 1 : 0;
+      const tile = (typeof robberTileIndex !== "undefined" && robberTileIndex !== null) ? robberTileIndex : 0;
+      showVictimUi223(attacker, self, tile);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fixVictimTestButton223);
+  } else {
+    fixVictimTestButton223();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_CONNECT_V223_END -->
 
 </body>
 </html>
