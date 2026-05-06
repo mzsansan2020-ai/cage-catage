@@ -12723,409 +12723,378 @@ function previewGameStartConfirm(){
 <!-- CLOSE_BUTTON_CENTER_AND_LOCAL_TEST_V231_END -->
 
 
-
-<!-- ROBBER_VICTIM_STOLEN_RESULT_V232_START -->
+<!-- ROBBER_VICTIM_STOLEN_RESULT_V233_START -->
 <style>
-  /* v232: 略奪完了後、奪われた側だけに表示する本番用通知UI。既存UIは変更しない。 */
-  #rbVictimResultToast232 {
+  /* v233: 略奪完了後、奪われた側だけに出す本番用通知。画像は既存の本番素材を差し替えスロットとして使用する。 */
+  #rbVictimResultToast233 {
     position: fixed;
-    z-index: 10135;
+    z-index: 10125;
     left: 50%;
     top: 18%;
     transform: translateX(-50%);
     display: none;
     align-items: center;
-    width: min(680px, calc(100vw - 34px));
+    width: 680px;
     min-height: 96px;
+    max-width: calc(100vw - 34px);
     box-sizing: border-box;
-    padding: 10px 18px 10px 18px;
-    border-radius: 17px;
-    border: 4px solid #d8a94a;
+    padding: 10px 118px 10px 140px;
+    border-radius: 16px;
+    overflow: hidden;
+    color: #fff6d6;
     background:
-      radial-gradient(circle at 20% 0%, rgba(44,155,255,.30), transparent 38%),
-      linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,0) 42%),
-      linear-gradient(105deg, #043b76 0%, #052f62 48%, #082449 100%);
-    color: #fff7d7;
+      radial-gradient(circle at 15% 50%, rgba(75, 190, 255, .22), transparent 28%),
+      radial-gradient(circle at 88% 40%, rgba(255, 225, 140, .12), transparent 24%),
+      linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 38%),
+      linear-gradient(135deg, #062858 0%, #004f9c 42%, #052b5d 100%);
+    border: 3px solid #d49a32;
     box-shadow:
-      0 12px 30px rgba(0,0,0,.48),
-      inset 0 0 0 2px rgba(40,15,4,.48),
-      0 0 18px rgba(18,104,181,.45);
-    overflow: hidden;
-    animation: rbVictimResultIn232 .18s ease-out;
+      inset 0 0 0 2px rgba(255, 242, 180, .45),
+      0 14px 34px rgba(0,0,0,.48),
+      0 0 22px rgba(35,145,255,.42);
+    animation: rbVictimResultIn233 .18s ease-out;
   }
 
-  #rbVictimResultToast232::before {
+  #rbVictimResultToast233::before {
     content: "";
     position: absolute;
-    inset: 7px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,235,170,.28);
-    pointer-events: none;
-  }
-
-  #rbVictimResultToast232::after {
-    content: "";
-    position: absolute;
-    right: 94px;
-    top: -44px;
-    width: 170px;
-    height: 170px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,.11), transparent 68%);
-    pointer-events: none;
-  }
-
-  .rbVictimResultRobber232 {
-    position: relative;
-    flex: 0 0 126px;
-    height: 92px;
-    margin-right: 14px;
-    filter: drop-shadow(0 0 12px rgba(0,177,255,.50)) drop-shadow(0 8px 9px rgba(0,0,0,.45));
-  }
-
-  .rbVictimResultRobber232 .rbCloak { fill: url(#rbVictimResultCloakGrad232); }
-  .rbVictimResultRobber232 .rbBody { fill: rgba(0,0,0,.50); }
-  .rbVictimResultRobber232 .rbEye { fill:#ff721f; filter: drop-shadow(0 0 5px #ff3b13); }
-  .rbVictimResultRobber232 .rbEdge { fill:none; stroke:rgba(255,255,255,.10); stroke-width:2; }
-
-  .rbVictimResultText232 {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
-    text-align: center;
-    text-shadow: 0 2px 3px rgba(0,0,0,.72);
-  }
-
-  .rbVictimResultTitle232 {
-    font-size: 22px;
-    line-height: 1.18;
-    font-weight: 1000;
-    letter-spacing: .02em;
-    white-space: nowrap;
-  }
-
-  .rbVictimResultLine232 {
-    margin-top: 7px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 9px;
-    font-size: 20px;
-    font-weight: 1000;
-    white-space: nowrap;
-  }
-
-  .rbVictimResultPlayer232 {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 92px;
-    max-width: 170px;
-    padding: 4px 16px 5px;
-    border-radius: 999px;
-    border: 3px solid rgba(91,181,255,.90);
-    background: linear-gradient(180deg, rgba(40,142,230,.58), rgba(9,73,142,.58));
-    color: #ffffff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .rbVictimResultResource232 {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 92px;
-    padding: 5px 18px 6px;
-    border-radius: 999px;
-    border: 3px solid #cf8b25;
-    background: linear-gradient(180deg, #fff0bd, #f3bc58 64%, #d9952e);
-    color: #3d2307;
-    text-shadow: 0 1px 0 rgba(255,255,255,.70);
-    box-shadow: inset 0 2px 4px rgba(255,255,255,.45), 0 2px 5px rgba(0,0,0,.24);
-  }
-
-  .rbVictimResultCard232 {
-    position: relative;
-    flex: 0 0 74px;
-    width: 74px;
-    height: 86px;
-    margin-left: 18px;
-    border-radius: 10px;
-    border: 5px solid #f5dda5;
+    inset: 0;
     background:
-      linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,0) 38%),
-      var(--rbResultCardBg232, linear-gradient(135deg,#2d7b3d,#75b851));
-    box-shadow: 0 7px 12px rgba(0,0,0,.38), inset 0 0 0 2px rgba(103,62,16,.36);
-    transform: rotate(8deg);
-    display: grid;
-    place-items: center;
-    overflow: hidden;
+      linear-gradient(90deg, rgba(255,255,255,.09), transparent 22%, transparent 78%, rgba(255,255,255,.08)),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 2px, transparent 2px 8px);
+    pointer-events: none;
   }
 
-  .rbVictimResultCard232::before {
-    content: "";
+  .rbVictimResultRobber233 {
     position: absolute;
-    inset: 7px;
-    border-radius: 7px;
-    background: rgba(255,246,202,.26);
-    border: 1px solid rgba(255,255,255,.28);
+    left: 22px;
+    bottom: -6px;
+    width: 112px;
+    height: 102px;
+    object-fit: contain;
+    filter:
+      drop-shadow(0 0 12px rgba(40, 190, 255, .62))
+      drop-shadow(0 8px 9px rgba(0,0,0,.55));
+    pointer-events: none;
   }
 
-  .rbVictimResultIcon232 {
+  .rbVictimResultText233 {
     position: relative;
     z-index: 1;
-    width: 52px;
-    height: 52px;
+    min-width: 0;
+    text-align: center;
+    text-shadow: 0 2px 2px rgba(0,0,0,.62);
+  }
+
+  .rbVictimResultMain233 {
+    font-size: 25px;
+    line-height: 1.18;
+    font-weight: 1000;
+    letter-spacing: .03em;
+    white-space: nowrap;
+  }
+
+  .rbVictimResultLine233 {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 22px;
+    line-height: 1.1;
+    font-weight: 1000;
+    white-space: nowrap;
+  }
+
+  .rbVictimResultPlayer233 {
+    min-width: 118px;
+    max-width: 178px;
+    padding: 7px 18px 8px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    border: 3px solid rgba(108,190,255,.78);
+    background: linear-gradient(180deg, rgba(20,104,188,.92), rgba(9,58,128,.92));
+    color: #e4f5ff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 2px rgba(0,0,0,.58);
+  }
+
+  .rbVictimResultResource233 {
+    min-width: 108px;
+    padding: 7px 20px 8px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    border: 3px solid #c98422;
+    background: linear-gradient(180deg, #fff0c4, #e5a849 56%, #c67a1e);
+    color: #3b1d07;
+    text-shadow: 0 1px 0 rgba(255,255,255,.65);
+  }
+
+  .rbVictimResultCard233 {
+    position: absolute;
+    right: 28px;
+    top: 13px;
+    z-index: 1;
+    width: 74px;
+    height: 74px;
+    border-radius: 11px;
+    border: 3px solid #f1d18a;
+    background: linear-gradient(180deg, #fff6d6, #d8a851);
+    box-shadow: 0 5px 12px rgba(0,0,0,.36);
+    transform: rotate(7deg);
+    overflow: hidden;
+  }
+
+  .rbVictimResultCard233 img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .rbVictimResultCard233 .rbVictimResultCardFallback233 {
+    width: 100%;
+    height: 100%;
     display: grid;
     place-items: center;
+    font-size: 32px;
+    font-weight: 1000;
+    color: #5b340f;
   }
 
-  .rbVictimResultIcon232 svg {
-    width: 52px;
-    height: 52px;
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,.28));
-  }
-
-  @keyframes rbVictimResultIn232 {
+  @keyframes rbVictimResultIn233 {
     from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(.97); }
     to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   }
-
-  @media (max-width: 720px) {
-    #rbVictimResultToast232 { width: calc(100vw - 24px); padding: 9px 12px; }
-    .rbVictimResultRobber232 { flex-basis: 86px; margin-right: 8px; }
-    .rbVictimResultTitle232 { font-size: 18px; }
-    .rbVictimResultLine232 { font-size: 17px; gap: 6px; }
-    .rbVictimResultCard232 { flex-basis: 58px; width: 58px; height: 70px; margin-left: 8px; }
-  }
 </style>
 
-<svg width="0" height="0" style="position:absolute">
-  <defs>
-    <linearGradient id="rbVictimResultCloakGrad232" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#1d1b21"/>
-      <stop offset="58%" stop-color="#060608"/>
-      <stop offset="100%" stop-color="#000000"/>
-    </linearGradient>
-  </defs>
-</svg>
-
-<div id="rbVictimResultToast232" aria-live="polite">
-  <svg class="rbVictimResultRobber232" viewBox="0 0 120 130" aria-hidden="true">
-    <path class="rbCloak" d="M60 5 C32 12 17 39 18 66 C18 101 37 125 60 125 C83 125 102 101 102 66 C103 39 88 12 60 5 Z"/>
-    <path class="rbBody" d="M31 120 C35 83 42 61 60 55 C78 61 85 83 89 120 Z"/>
-    <path class="rbBody" d="M30 61 C34 28 46 16 60 13 C74 16 86 28 90 61 C81 51 72 47 60 47 C48 47 39 51 30 61 Z"/>
-    <path class="rbEye" d="M46 57 C51 57 55 59 57 63 C50 64 45 63 42 60 C42 58 44 57 46 57 Z"/>
-    <path class="rbEye" d="M74 57 C69 57 65 59 63 63 C70 64 75 63 78 60 C78 58 76 57 74 57 Z"/>
-    <path class="rbEdge" d="M60 5 C32 12 17 39 18 66 C18 101 37 125 60 125 C83 125 102 101 102 66 C103 39 88 12 60 5 Z"/>
-  </svg>
-  <div class="rbVictimResultText232">
-    <div id="rbVictimResultTitle232" class="rbVictimResultTitle232">盗賊があなたから資源を1枚奪いました</div>
-    <div class="rbVictimResultLine232">
-      <span id="rbVictimResultAttacker232" class="rbVictimResultPlayer232">青の青</span>
+<div id="rbVictimResultToast233" aria-live="polite">
+  <img id="rbVictimResultRobber233" class="rbVictimResultRobber233" alt="盗賊">
+  <div class="rbVictimResultText233">
+    <div id="rbVictimResultMain233" class="rbVictimResultMain233">盗賊があなたから資源を1枚奪いました</div>
+    <div class="rbVictimResultLine233">
+      <span id="rbVictimResultAttacker233" class="rbVictimResultPlayer233">青の青</span>
       <span>が</span>
-      <span id="rbVictimResultResource232" class="rbVictimResultResource232">木材</span>
+      <span id="rbVictimResultResource233" class="rbVictimResultResource233">木材</span>
       <span>を奪いました</span>
     </div>
   </div>
-  <div id="rbVictimResultCard232" class="rbVictimResultCard232">
-    <div id="rbVictimResultIcon232" class="rbVictimResultIcon232"></div>
+  <div class="rbVictimResultCard233">
+    <img id="rbVictimResultResourceImage233" alt="奪われた資源">
+    <div id="rbVictimResultFallback233" class="rbVictimResultCardFallback233">木</div>
   </div>
 </div>
 
 <script>
 (function(){
-  const RB_RESULT_COLORS_232 = {
-    red:    { label:'赤', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)' },
-    blue:   { label:'青', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)' },
-    green:  { label:'緑', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)' },
-    yellow: { label:'黄', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)' }
+  const COLORS_233 = {
+    red:    { label:'赤' },
+    blue:   { label:'青' },
+    green:  { label:'緑' },
+    yellow: { label:'黄' }
+  };
+  const RESOURCE_233 = {
+    forest: { label:'木材', short:'木', aliases:['wood','lumber','木','木材'] },
+    brick:  { label:'レンガ', short:'粘', aliases:['clay','粘土','レンガ'] },
+    sheep:  { label:'羊', short:'羊', aliases:['wool','羊'] },
+    wheat:  { label:'小麦', short:'麦', aliases:['grain','麦','小麦'] },
+    ore:    { label:'鉱石', short:'石', aliases:['stone','rock','石','鉱石'] }
   };
 
-  const RB_RESULT_RES_232 = {
-    forest: { label:'木材', bg:'linear-gradient(135deg,#1e6731,#70b652)', icon:'wood' },
-    wood:   { label:'木材', bg:'linear-gradient(135deg,#1e6731,#70b652)', icon:'wood' },
-    brick:  { label:'レンガ', bg:'linear-gradient(135deg,#94451f,#d47735)', icon:'brick' },
-    clay:   { label:'レンガ', bg:'linear-gradient(135deg,#94451f,#d47735)', icon:'brick' },
-    sheep:  { label:'羊', bg:'linear-gradient(135deg,#4f9d45,#b8d868)', icon:'sheep' },
-    wheat:  { label:'小麦', bg:'linear-gradient(135deg,#bd8420,#ead16a)', icon:'wheat' },
-    ore:    { label:'鉱石', bg:'linear-gradient(135deg,#494949,#949494)', icon:'ore' }
-  };
-
-  function colorKey232(player) { return ['red','blue','green','yellow'][Number(player)] || 'red'; }
-  function color232(player) { return RB_RESULT_COLORS_232[colorKey232(player)] || RB_RESULT_COLORS_232.red; }
-  function name232(player) {
+  function colorKey233(player) {
+    return ['red','blue','green','yellow'][Number(player)] || 'red';
+  }
+  function colorLabel233(player) {
+    const key = colorKey233(player);
+    return (COLORS_233[key] && COLORS_233[key].label) || '赤';
+  }
+  function playerName233(player) {
     try { if (typeof getPlayerName === 'function') return getPlayerName(player); } catch(e) {}
-    return color232(player).label;
+    return colorLabel233(player);
   }
-  function esc232(s) {
-    if (typeof escapeHtml === 'function') return escapeHtml(String(s));
-    return String(s).replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));
+  function escape233(value) {
+    if (typeof escapeHtml === 'function') return escapeHtml(String(value));
+    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   }
-  function normalizeRes232(resource) {
+  function normalizeResource233(resource) {
     const raw = String(resource || '').trim();
-    const map = { '木':'forest', '木材':'forest', '森':'forest', 'forest':'forest', 'wood':'forest', 'lumber':'forest', '粘土':'brick', 'レンガ':'brick', 'brick':'brick', 'clay':'brick', '羊':'sheep', 'sheep':'sheep', 'wool':'sheep', '麦':'wheat', '小麦':'wheat', 'wheat':'wheat', 'grain':'wheat', '石':'ore', '鉱石':'ore', 'ore':'ore', 'stone':'ore', 'rock':'ore' };
-    return map[raw] || map[raw.toLowerCase()] || 'forest';
+    const low = raw.toLowerCase();
+    for (const key of Object.keys(RESOURCE_233)) {
+      if (key === low || RESOURCE_233[key].aliases.includes(raw) || RESOURCE_233[key].aliases.includes(low)) return key;
+    }
+    return low || 'forest';
   }
-  function labelRes232(resource) {
-    const key = normalizeRes232(resource);
-    try { if (typeof resourceName !== 'undefined' && resourceName && resourceName[key]) return resourceName[key]; } catch(e) {}
-    return (RB_RESULT_RES_232[key] || RB_RESULT_RES_232.forest).label;
+  function resourceMeta233(resource) {
+    const key = normalizeResource233(resource);
+    return RESOURCE_233[key] || { label: String(resource || '資源'), short: String(resource || '資').slice(0,1) || '資' };
   }
-  function iconSvg232(kind) {
-    if (kind === 'brick') return '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="14" width="21" height="15" rx="3" fill="#b94f26" stroke="#6c2e17" stroke-width="3"/><rect x="33" y="14" width="21" height="15" rx="3" fill="#d16932" stroke="#6c2e17" stroke-width="3"/><rect x="18" y="32" width="28" height="17" rx="3" fill="#c45a2d" stroke="#6c2e17" stroke-width="3"/></svg>';
-    if (kind === 'sheep') return '<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="30" cy="34" rx="19" ry="14" fill="#fff5d6" stroke="#6b5a37" stroke-width="3"/><circle cx="20" cy="28" r="9" fill="#fff8e6" stroke="#6b5a37" stroke-width="3"/><circle cx="40" cy="27" r="9" fill="#fff8e6" stroke="#6b5a37" stroke-width="3"/><circle cx="48" cy="36" r="8" fill="#3a2a21"/><circle cx="50" cy="34" r="1.6" fill="#fff"/><path d="M21 46 v8 M41 46 v8" stroke="#3a2a21" stroke-width="5" stroke-linecap="round"/></svg>';
-    if (kind === 'wheat') return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M33 55 C31 42 31 28 34 10" stroke="#8a5d12" stroke-width="5" stroke-linecap="round"/><path d="M32 20 C20 15 18 8 20 4 C30 6 35 12 32 20Z M34 29 C22 27 17 20 18 15 C29 16 36 22 34 29Z M33 38 C22 39 17 33 17 27 C29 27 36 32 33 38Z M35 21 C47 16 49 9 47 5 C37 7 32 13 35 21Z M35 30 C48 28 52 21 51 16 C40 17 33 23 35 30Z M35 39 C48 40 52 34 52 28 C40 28 33 33 35 39Z" fill="#f3c642" stroke="#8a5d12" stroke-width="2"/></svg>';
-    if (kind === 'ore') return '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 43 L24 22 L42 16 L53 35 L44 51 L24 54 Z" fill="#707070" stroke="#333" stroke-width="3"/><path d="M24 22 L32 42 L42 16 M32 42 L53 35" stroke="#bfbfbf" stroke-width="3" opacity=".75"/><path d="M20 44 L31 47" stroke="#2b2b2b" stroke-width="3" opacity=".55"/></svg>';
-    return '<svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="#5a3715" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="17" width="37" height="13" rx="7" fill="#b9792c" transform="rotate(-15 26 24)"/><rect x="15" y="31" width="41" height="14" rx="7" fill="#d5973e" transform="rotate(-11 36 38)"/><circle cx="13" cy="22" r="5" fill="#e7bb6c"/><circle cx="21" cy="36" r="5" fill="#efc879"/></g></svg>';
+  function resourceImage233(resource) {
+    const key = normalizeResource233(resource);
+    try {
+      if (typeof tileImages !== 'undefined') {
+        if (tileImages[key] && tileImages[key].src) return tileImages[key].src;
+        if (key === 'forest' && tileImages.wood && tileImages.wood.src) return tileImages.wood.src;
+      }
+    } catch(e) {}
+    try {
+      if (typeof imageData !== 'undefined') {
+        if (imageData[key]) return imageData[key];
+        if (key === 'forest' && imageData.wood) return imageData.wood;
+      }
+    } catch(e) {}
+    return '';
   }
-  function getResourceDiff232(before, after) {
-    const keys = ['forest','wood','brick','clay','sheep','wheat','ore'];
-    for (const k of keys) {
-      const b = before && typeof before[k] !== 'undefined' ? Number(before[k] || 0) : 0;
-      const a = after && typeof after[k] !== 'undefined' ? Number(after[k] || 0) : 0;
-      if (a < b) return normalizeRes232(k);
+  function robberImage233() {
+    const existing = document.querySelector('.robberIconNew211.toast, .robberIconNew211.header, .robberIconNew211.appear, .robberIconA210.toast, .robberIconA210.header');
+    return existing && existing.src ? existing.src : '';
+  }
+  function cloneHand233(player) {
+    try { if (typeof resources !== 'undefined' && resources && resources[player]) return {...resources[player]}; } catch(e) {}
+    return null;
+  }
+  function resourceCount233(hand, key) {
+    if (!hand) return 0;
+    if (key === 'forest') return (hand.forest || 0) + (hand.wood || 0);
+    return hand[key] || 0;
+  }
+  function detectStolen233(before, after) {
+    if (!before || !after) return '';
+    for (const key of ['forest','brick','sheep','wheat','ore']) {
+      if (resourceCount233(after, key) < resourceCount233(before, key)) return key;
     }
     return '';
   }
-  function cloneHand232(player) {
-    try { if (typeof resources !== 'undefined' && resources && resources[player]) return Object.assign({}, resources[player]); } catch(e) {}
-    return null;
-  }
 
-  window.showRobberVictimStolenResult232 = function(attackerPlayer, victimPlayer, resource) {
-    const toast = document.getElementById('rbVictimResultToast232');
+  window.showRobberVictimStolenResult233 = function(attackerPlayer, victimPlayer, resourceName) {
+    const self = (typeof getSelfPlayer === 'function') ? Number(getSelfPlayer()) : Number(victimPlayer);
+    if (Number(self) !== Number(victimPlayer)) return;
+
+    if (typeof hideRobberVictimNotice222 === 'function') hideRobberVictimNotice222();
+    if (typeof hideRobberVictimNotice215 === 'function') hideRobberVictimNotice215();
+
+    const toast = document.getElementById('rbVictimResultToast233');
     if (!toast) return;
-    const attacker = color232(attackerPlayer);
-    const rKey = normalizeRes232(resource);
-    const res = RB_RESULT_RES_232[rKey] || RB_RESULT_RES_232.forest;
-    const title = document.getElementById('rbVictimResultTitle232');
-    const attackerEl = document.getElementById('rbVictimResultAttacker232');
-    const resEl = document.getElementById('rbVictimResultResource232');
-    const card = document.getElementById('rbVictimResultCard232');
-    const icon = document.getElementById('rbVictimResultIcon232');
 
-    toast.style.setProperty('--rbResultCardBg232', res.bg);
-    toast.style.borderColor = '#d8a94a';
-    toast.style.boxShadow = '0 12px 30px rgba(0,0,0,.48), inset 0 0 0 2px rgba(40,15,4,.48), 0 0 18px ' + attacker.glow;
-    if (title) title.textContent = '盗賊があなたから資源を1枚奪いました';
-    if (attackerEl) {
-      attackerEl.textContent = attacker.label + 'の' + name232(attackerPlayer);
-      attackerEl.style.borderColor = attacker.accent;
-      attackerEl.style.background = 'linear-gradient(180deg,' + attacker.accent + ', ' + attacker.dark + ')';
+    const robber = document.getElementById('rbVictimResultRobber233');
+    const attacker = document.getElementById('rbVictimResultAttacker233');
+    const resource = document.getElementById('rbVictimResultResource233');
+    const img = document.getElementById('rbVictimResultResourceImage233');
+    const fallback = document.getElementById('rbVictimResultFallback233');
+
+    const meta = resourceMeta233(resourceName);
+    const src = resourceImage233(resourceName);
+    const robberSrc = robberImage233();
+
+    if (robber && robberSrc) robber.src = robberSrc;
+    if (attacker) attacker.innerHTML = escape233(colorLabel233(attackerPlayer) + 'の' + playerName233(attackerPlayer));
+    if (resource) resource.textContent = meta.label;
+
+    if (img && fallback) {
+      if (src) {
+        img.src = src;
+        img.style.display = 'block';
+        fallback.style.display = 'none';
+      } else {
+        img.removeAttribute('src');
+        img.style.display = 'none';
+        fallback.textContent = meta.short;
+        fallback.style.display = 'grid';
+      }
     }
-    if (resEl) resEl.textContent = labelRes232(rKey);
-    if (card) card.style.setProperty('--rbResultCardBg232', res.bg);
-    if (icon) icon.innerHTML = iconSvg232(res.icon);
 
     toast.style.display = 'flex';
-    clearTimeout(window.__rbVictimResultTimer232);
-    window.__rbVictimResultTimer232 = setTimeout(() => { toast.style.display = 'none'; }, 2200);
+    clearTimeout(window.__rbVictimResultTimer233);
+    window.__rbVictimResultTimer233 = setTimeout(() => { toast.style.display = 'none'; }, 2200);
   };
 
-  function publishResult232(notice) {
-    if (typeof updateDoc === 'function' && typeof roomRef !== 'undefined' && roomRef) {
-      updateDoc(roomRef, { robberLootResultNotice: notice }).catch(err => console.error('robberLootResultNotice publish failed', err));
+  function processResultNotice233(notice) {
+    if (!notice || !notice.victimResult) return;
+    window.showRobberVictimStolenResult233(notice.movingPlayer, notice.targetPlayer, notice.resourceName || notice.resource || '');
+  }
+
+  function publishResult233(payload) {
+    if (typeof window.firebasePublishRobberLootNotice === 'function') {
+      window.firebasePublishRobberLootNotice(payload).catch(err => console.error('robber victim result publish failed', err));
     }
   }
 
-  let lastResultId232 = null;
-  function processResult232(notice) {
-    if (!notice || !notice.active) return;
-    if (notice.id && notice.id === lastResultId232) return;
-    lastResultId232 = notice.id || String(Date.now());
-    let self = null;
-    try { if (typeof getSelfPlayer === 'function') self = Number(getSelfPlayer()); } catch(e) {}
-    if (self === null || Number.isNaN(self)) return;
-    if (self === Number(notice.victimPlayer)) {
-      if (typeof hideRobberVictimNotice222 === 'function') hideRobberVictimNotice222();
-      if (typeof hideRobberVictimNotice215 === 'function') hideRobberVictimNotice215();
-      window.showRobberVictimStolenResult232(Number(notice.attackerPlayer), Number(notice.victimPlayer), notice.resource);
-    }
-  }
-
-  function installApplyWrapper232() {
-    if (window.__robberVictimResultApplyWrapped232) return;
-    if (typeof window.applyRealtimeBoardData !== 'function') return;
-    const originalApply = window.applyRealtimeBoardData;
-    window.__robberVictimResultApplyWrapped232 = true;
-    window.applyRealtimeBoardData = function(data) {
-      const result = originalApply(data);
-      if (data && data.robberLootResultNotice) processResult232(data.robberLootResultNotice);
-      return result;
-    };
-  }
-
-  function installSnapshot232() {
-    if (window.__robberVictimResultSnapshot232) return;
-    if (typeof onSnapshot !== 'function' || typeof roomRef === 'undefined' || !roomRef) return;
-    window.__robberVictimResultSnapshot232 = true;
-    onSnapshot(roomRef, snap => {
-      if (!snap.exists()) return;
-      const data = snap.data();
-      if (data && data.robberLootResultNotice) processResult232(data.robberLootResultNotice);
-    });
-  }
-
-  const installTimer232 = setInterval(() => {
-    installApplyWrapper232();
-    installSnapshot232();
-    if (window.__robberVictimResultApplyWrapped232 && window.__robberVictimResultSnapshot232) clearInterval(installTimer232);
-  }, 300);
-
-  const previousSteal232 = window.robberLootUiSteal214;
-  if (typeof previousSteal232 === 'function' && !window.__robberVictimResultStealWrapped232) {
-    window.__robberVictimResultStealWrapped232 = true;
+  const originalSteal233 = window.robberLootUiSteal214;
+  if (typeof originalSteal233 === 'function' && !window.__robberVictimResultWrapped233) {
+    window.__robberVictimResultWrapped233 = true;
     window.robberLootUiSteal214 = function(targetPlayer) {
-      targetPlayer = Number(targetPlayer);
-      let attackerPlayer = null;
-      try { if (typeof getCurrentPlayer === 'function') attackerPlayer = Number(getCurrentPlayer()); } catch(e) {}
-      try { if ((attackerPlayer === null || Number.isNaN(attackerPlayer)) && typeof pendingRobberPlayer !== 'undefined') attackerPlayer = Number(pendingRobberPlayer); } catch(e) {}
-      const before = cloneHand232(targetPlayer);
-      const result = previousSteal232.apply(this, arguments);
-      const after = cloneHand232(targetPlayer);
-      const stolen = getResourceDiff232(before, after) || 'forest';
-      if (attackerPlayer === null || Number.isNaN(attackerPlayer)) {
-        try { if (typeof getSelfPlayer === 'function') attackerPlayer = Number(getSelfPlayer()); } catch(e) {}
-      }
+      const victim = Number(targetPlayer);
+      let attacker = null;
+      try { if (typeof getCurrentPlayer === 'function') attacker = Number(getCurrentPlayer()); } catch(e) {}
+      try { if ((attacker === null || Number.isNaN(attacker)) && typeof pendingRobberPlayer !== 'undefined') attacker = Number(pendingRobberPlayer); } catch(e) {}
+      if (attacker === null || Number.isNaN(attacker)) attacker = 0;
+
+      const before = cloneHand233(victim);
+      const result = originalSteal233.apply(this, arguments);
+      const after = cloneHand233(victim);
+      const stolen = detectStolen233(before, after);
+      const meta = resourceMeta233(stolen);
+
       const notice = {
         id: Date.now() + '_victim_result_' + Math.random().toString(36).slice(2),
-        active: true,
-        attackerPlayer: Number(attackerPlayer),
-        victimPlayer: Number(targetPlayer),
-        resource: stolen,
-        createdAt: Date.now()
+        active: false,
+        victimResult: true,
+        movingPlayer: attacker,
+        targetPlayer: victim,
+        resourceName: stolen || meta.label,
+        completedAt: Date.now()
       };
-      publishResult232(notice);
-      processResult232(notice);
+
+      publishResult233(notice);
+      processResultNotice233(notice);
       return result;
     };
   }
 
-  function installResultTestButton232() {
+  function installApplyWrapper233() {
+    if (window.__victimResultApplyWrapped233) return;
+    if (typeof window.applyRealtimeBoardData !== 'function') return;
+    const originalApply = window.applyRealtimeBoardData;
+    window.__victimResultApplyWrapped233 = true;
+    window.applyRealtimeBoardData = function(data) {
+      const result = originalApply(data);
+      if (data && data.robberLootNotice) processResultNotice233(data.robberLootNotice);
+      return result;
+    };
+  }
+
+  const timer233 = setInterval(() => {
+    if (typeof window.applyRealtimeBoardData === 'function') {
+      clearInterval(timer233);
+      installApplyWrapper233();
+    }
+  }, 250);
+
+  function installResultTestButton233() {
     const panel = document.getElementById('robberTestPanel207');
-    if (!panel || document.getElementById('robberVictimResultTestBtn232')) return;
+    if (!panel || document.getElementById('robberVictimResultTestBtn233')) return;
     const btn = document.createElement('button');
-    btn.id = 'robberVictimResultTestBtn232';
+    btn.id = 'robberVictimResultTestBtn233';
     btn.type = 'button';
     btn.textContent = '被害完了UI';
     btn.onclick = function() {
       let self = 1;
       try { if (typeof getSelfPlayer === 'function') self = Number(getSelfPlayer()); } catch(e) {}
       const attacker = self === 0 ? 1 : 0;
-      window.showRobberVictimStolenResult232(attacker, self, 'forest');
+      window.showRobberVictimStolenResult233(attacker, self, 'forest');
     };
     panel.appendChild(btn);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installResultTestButton232);
+    document.addEventListener('DOMContentLoaded', installResultTestButton233);
   } else {
-    installResultTestButton232();
+    installResultTestButton233();
   }
+  setTimeout(installResultTestButton233, 400);
 })();
 </script>
-<!-- ROBBER_VICTIM_STOLEN_RESULT_V232_END -->
+<!-- ROBBER_VICTIM_STOLEN_RESULT_V233_END -->
 
 </body>
 </html>
