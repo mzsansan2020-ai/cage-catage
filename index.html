@@ -9977,5 +9977,323 @@ function previewGameStartConfirm(){
 </script>
 <!-- ROBBER_STEAL_CONNECT_V214_END -->
 
+
+<!-- ROBBER_VICTIM_NOTICE_V215_START -->
+<style>
+  #rbVictimOverlay215 {
+    position: fixed;
+    inset: 0;
+    z-index: 10095;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 50% 48%, rgba(20, 90, 160, .18), transparent 34%),
+      rgba(0, 0, 0, .54);
+    backdrop-filter: blur(2px);
+  }
+
+  #rbVictimModal215 {
+    position: relative;
+    width: 460px;
+    max-width: calc(100vw - 34px);
+    border-radius: 14px;
+    overflow: hidden;
+    color: #2c1b0d;
+    background: #f1d8a6;
+    border: 3px solid #5b260f;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,235,175,.55),
+      0 18px 48px rgba(0,0,0,.58),
+      0 0 25px var(--rbVictimGlow, rgba(45,135,255,.50));
+    animation: rbVictimPop215 .18s ease-out;
+  }
+
+  .rbVictimHeader215 {
+    position: relative;
+    min-height: 68px;
+    padding: 12px 48px 10px 96px;
+    color: #fff4ce;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,0) 40%),
+      linear-gradient(90deg,var(--rbVictimAccent,#1268b5), #65130d 72%, #350806);
+    border-bottom: 3px solid #4a180b;
+    text-shadow: 0 2px 2px rgba(0,0,0,.75);
+  }
+
+  .rbVictimHeader215::before,
+  .rbVictimHeader215::after {
+    content: "✦";
+    position: absolute;
+    top: 23px;
+    color: rgba(255,226,145,.88);
+    font-size: 16px;
+  }
+
+  .rbVictimHeader215::before { left: 12px; }
+  .rbVictimHeader215::after { right: 18px; }
+
+  .rbVictimIcon215 {
+    position: absolute;
+    left: 18px;
+    top: -6px;
+    width: 82px;
+    height: 82px;
+    object-fit: contain;
+    filter:
+      drop-shadow(0 0 14px rgba(255,49,35,.55))
+      drop-shadow(0 8px 12px rgba(0,0,0,.66));
+  }
+
+  .rbVictimTitle215 {
+    font-size: 27px;
+    font-weight: 1000;
+    letter-spacing: .03em;
+    line-height: 1.2;
+  }
+
+  .rbVictimBody215 {
+    padding: 20px 24px 22px;
+    text-align: center;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255,252,228,.95), transparent 45%),
+      linear-gradient(180deg, rgba(255,255,255,.50), rgba(255,255,255,.06)),
+      repeating-linear-gradient(135deg, rgba(120,80,30,.035) 0 2px, transparent 2px 7px),
+      #f1d8a6;
+  }
+
+  .rbVictimMain215 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 1000;
+    color: var(--rbVictimAccentDark, #0d4f91);
+  }
+
+  .rbVictimSub215 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 900;
+    color: #3e2914;
+  }
+
+  .rbVictimInfoBox215 {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin: 12px auto 0;
+    padding: 12px 14px;
+    border-radius: 11px;
+    border: 2px solid rgba(142,91,39,.48);
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.20)),
+      #f8ebca;
+    text-align: left;
+  }
+
+  .rbVictimPawn215 {
+    width: 34px;
+    height: 45px;
+    margin: auto;
+    border-radius: 50% 50% 42% 42% / 42% 42% 58% 58%;
+    background: var(--rbVictimPawn,#d42626);
+    border: 2px solid rgba(38,22,8,.45);
+    box-shadow: inset 0 7px 8px rgba(255,255,255,.32), inset 0 -8px 9px rgba(0,0,0,.25);
+  }
+
+  .rbVictimInfoName215 {
+    font-size: 17px;
+    font-weight: 1000;
+  }
+
+  .rbVictimInfoText215 {
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #68492a;
+  }
+
+  .rbVictimSmall215 {
+    margin-top: 14px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #6b4b28;
+  }
+
+  @keyframes rbVictimPop215 {
+    from { opacity: 0; transform: translateY(8px) scale(.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+</style>
+
+<div id="rbVictimOverlay215">
+  <div id="rbVictimModal215">
+    <div class="rbVictimHeader215">
+      <img id="rbVictimIcon215" class="rbVictimIcon215" alt="盗賊">
+      <div class="rbVictimTitle215">盗賊に狙われています</div>
+    </div>
+    <div class="rbVictimBody215">
+      <p id="rbVictimMain215" class="rbVictimMain215">資源が奪われます</p>
+      <p id="rbVictimSub215" class="rbVictimSub215">ターンプレイヤーが奪う資源を決定しています</p>
+      <div class="rbVictimInfoBox215">
+        <div id="rbVictimPawn215" class="rbVictimPawn215"></div>
+        <div>
+          <div id="rbVictimInfoName215" class="rbVictimInfoName215">あなたが略奪対象です</div>
+          <div id="rbVictimInfoText215" class="rbVictimInfoText215">資源を1枚ランダムに奪われる可能性があります</div>
+        </div>
+      </div>
+      <div class="rbVictimSmall215">この画面は、略奪処理が終わると自動的に閉じます</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const RB_COLORS_215 = {
+    red:    { label:'赤', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)', pawn:'#d42626' },
+    blue:   { label:'青', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)', pawn:'#1d78d2' },
+    green:  { label:'緑', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)', pawn:'#2e9439' },
+    yellow: { label:'黄', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)', pawn:'#e0ad22' }
+  };
+
+  function colorKey215(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function color215(playerOrKey) {
+    const key = typeof playerOrKey === "string" ? playerOrKey : colorKey215(playerOrKey);
+    return RB_COLORS_215[key] || RB_COLORS_215.red;
+  }
+
+  function hideVictimNotice215() {
+    const overlay = document.getElementById("rbVictimOverlay215");
+    if (overlay) overlay.style.display = "none";
+  }
+
+  window.hideRobberVictimNotice215 = hideVictimNotice215;
+
+  window.showRobberVictimNotice215 = function(movingPlayer, victimPlayer) {
+    const overlay = document.getElementById("rbVictimOverlay215");
+    const modal = document.getElementById("rbVictimModal215");
+    const icon = document.getElementById("rbVictimIcon215");
+    const main = document.getElementById("rbVictimMain215");
+    const sub = document.getElementById("rbVictimSub215");
+    const pawn = document.getElementById("rbVictimPawn215");
+    const infoName = document.getElementById("rbVictimInfoName215");
+    const infoText = document.getElementById("rbVictimInfoText215");
+
+    if (!overlay || !modal) return;
+
+    const attacker = color215(movingPlayer);
+    const victim = color215(victimPlayer);
+
+    modal.style.setProperty("--rbVictimAccent", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn", victim.pawn);
+
+    if (icon) {
+      const existingIcon = document.querySelector(".robberIconNew211.toast, .robberIconNew211.header, .robberIconA210.toast, .robberIconA210.header");
+      if (existingIcon && existingIcon.src) icon.src = existingIcon.src;
+    }
+
+    const attackerName = (typeof getPlayerName === "function") ? getPlayerName(movingPlayer) : attacker.label;
+    const victimName = (typeof getPlayerName === "function") ? getPlayerName(victimPlayer) : victim.label;
+    const count = (typeof getTotalResourceCount === "function") ? getTotalResourceCount(victimPlayer) : 0;
+
+    if (main) main.textContent = "資源が奪われます";
+    if (sub) sub.textContent = attacker.label + "の" + attackerName + "が盗賊で資源を奪おうとしています";
+    if (infoName) infoName.textContent = victim.label + "　" + victimName;
+    if (infoText) infoText.textContent = "現在の資源：" + count + "枚 / 1枚ランダムに奪われる可能性があります";
+
+    overlay.style.display = "flex";
+  };
+
+  // v212の移動後UI表示を上書きする。
+  // ターンプレイヤー本人には略奪UI、対象プレイヤー本人には「資源が奪われます」UIを表示する。
+  window.showRobberLootAfterMovePreview212 = function(tileIndex, movingPlayer) {
+    const candidates = (typeof getPlayersAdjacentToTile === "function")
+      ? getPlayersAdjacentToTile(tileIndex, movingPlayer)
+      : [];
+
+    const self = (typeof getSelfPlayer === "function") ? getSelfPlayer() : movingPlayer;
+
+    hideVictimNotice215();
+
+    // ターンプレイヤー本人のブラウザ：奪う相手を選ぶUI
+    if (self === movingPlayer) {
+      const overlay = document.getElementById("rbLootOverlay207");
+      const modal = document.getElementById("rbLootModal207");
+      const toast = document.getElementById("rbToast207");
+      const lead = document.getElementById("rbLootLead207");
+      const targetsPanel = document.getElementById("rbLootTargets207");
+      const emptyPanel = document.getElementById("rbLootEmpty207");
+      const list = document.getElementById("rbLootList207");
+
+      if (!overlay || !modal || !lead || !targetsPanel || !emptyPanel || !list) return;
+
+      const active = color215(movingPlayer);
+      modal.style.setProperty("--rbAccent", active.accent);
+      modal.style.setProperty("--rbAccentDark", active.dark);
+      modal.style.setProperty("--rbGlow", active.glow);
+      if (toast) {
+        toast.style.setProperty("--rbAccent", active.accent);
+        toast.style.setProperty("--rbAccentDark", active.dark);
+        toast.style.setProperty("--rbGlow", active.glow);
+      }
+
+      lead.textContent = active.label + "の盗賊が資源を奪います";
+
+      if (!candidates.length) {
+        targetsPanel.style.display = "none";
+        emptyPanel.style.display = "block";
+        overlay.style.display = "flex";
+        return;
+      }
+
+      targetsPanel.style.display = "block";
+      emptyPanel.style.display = "none";
+
+      list.innerHTML = candidates.map(p => {
+        const c = color215(p);
+        const count = (typeof getTotalResourceCount === "function") ? getTotalResourceCount(p) : 0;
+        return `
+          <div class="rbLootRow207">
+            <div class="rbPawn207" style="--pawn:${c.pawn}"></div>
+            <div>
+              <div class="rbLootName207">${c.label}　${escapeHtml(getPlayerName(p))}</div>
+              <div class="rbLootResource207">資源：${count}枚</div>
+            </div>
+            <button type="button" class="rbLootBtn207" onclick="robberLootUiSteal214(${p})">奪う</button>
+          </div>
+        `;
+      }).join("");
+
+      overlay.style.display = "flex";
+      return;
+    }
+
+    // 略奪対象になったプレイヤー本人のブラウザ：待機UI
+    if (candidates.includes(self)) {
+      showRobberVictimNotice215(movingPlayer, self);
+      return;
+    }
+
+    // 対象外のブラウザ：何も表示しない
+  };
+
+  // 奪取処理が終わったとき、対象者側の待機UIを閉じるための監視
+  let lastPending215 = null;
+  setInterval(() => {
+    if (typeof pendingRobberSteal === "undefined") return;
+    if (lastPending215 === true && pendingRobberSteal === false) {
+      hideVictimNotice215();
+    }
+    lastPending215 = pendingRobberSteal;
+  }, 400);
+})();
+</script>
+<!-- ROBBER_VICTIM_NOTICE_V215_END -->
+
 </body>
 </html>
