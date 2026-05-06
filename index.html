@@ -13008,16 +13008,77 @@ function previewGameStartConfirm(){
     window.__rbVictimResultTimer233 = setTimeout(() => { toast.style.display = 'none'; }, 2200);
   };
 
+  const processedVictimResultNoticeIds233 = new Set();
+
   function processResultNotice233(notice) {
     if (!notice || !notice.victimResult) return;
+    if (notice.id && processedVictimResultNoticeIds233.has(notice.id)) return;
+    if (notice.id) processedVictimResultNoticeIds233.add(notice.id);
     window.showRobberVictimStolenResult233(notice.movingPlayer, notice.targetPlayer, notice.resourceName || notice.resource || '');
   }
 
-  function publishResult233(payload) {
+  function writeResultNotice233(payload) {
     if (typeof window.firebasePublishRobberLootNotice === 'function') {
       window.firebasePublishRobberLootNotice(payload).catch(err => console.error('robber victim result publish failed', err));
     }
+    if (typeof updateDoc === 'function') {
+      try {
+        if (typeof roomRef !== 'undefined' && roomRef) {
+          updateDoc(roomRef, {
+            robberLootNotice: payload,
+            roomId: (typeof currentRoomIdForFirebase !== 'undefined' ? currentRoomIdForFirebase : undefined),
+            updatedByClientId: (typeof clientId !== 'undefined' ? clientId : undefined),
+            cloudUpdatedAt: Date.now()
+          }).catch(err => console.error('robber victim result room write failed', err));
+        }
+      } catch(e) {}
+      try {
+        if (typeof boardRef !== 'undefined' && boardRef && boardRef !== roomRef) {
+          updateDoc(boardRef, {
+            robberLootNotice: payload,
+            roomId: (typeof currentRoomIdForFirebase !== 'undefined' ? currentRoomIdForFirebase : undefined),
+            updatedByClientId: (typeof clientId !== 'undefined' ? clientId : undefined),
+            cloudUpdatedAt: Date.now()
+          }).catch(err => console.error('robber victim result board write failed', err));
+        }
+      } catch(e) {}
+    }
   }
+
+  function publishResult233(payload) {
+    // 既存の「略奪UIを閉じる通知」が直後に走る環境があるため、
+    // 完了通知を少し後に再送して奪われた側ブラウザで確実に拾えるようにする。
+    writeResultNotice233(payload);
+    setTimeout(() => writeResultNotice233(payload), 120);
+  }
+
+  function startVictimResultSnapshotListener233() {
+    if (window.__victimResultSnapshotListener233Started) return;
+    if (typeof onSnapshot !== 'function') return;
+    window.__victimResultSnapshotListener233Started = true;
+    const refs = [];
+    try { if (typeof roomRef !== 'undefined' && roomRef) refs.push(roomRef); } catch(e) {}
+    try { if (typeof boardRef !== 'undefined' && boardRef && !refs.includes(boardRef)) refs.push(boardRef); } catch(e) {}
+    refs.forEach(ref => {
+      try {
+        onSnapshot(ref, snap => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (data && data.robberLootNotice) processResultNotice233(data.robberLootNotice);
+        });
+      } catch(e) {}
+    });
+  }
+
+  const listenerTimer233 = setInterval(() => {
+    try {
+      const hasRef = (typeof roomRef !== 'undefined' && roomRef) || (typeof boardRef !== 'undefined' && boardRef);
+      if (hasRef && typeof onSnapshot === 'function') {
+        clearInterval(listenerTimer233);
+        startVictimResultSnapshotListener233();
+      }
+    } catch(e) {}
+  }, 300);
 
   const originalSteal233 = window.robberLootUiSteal214;
   if (typeof originalSteal233 === 'function' && !window.__robberVictimResultWrapped233) {
