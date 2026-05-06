@@ -11454,5 +11454,294 @@ function previewGameStartConfirm(){
 </script>
 <!-- ROBBER_VICTIM_CONNECT_V223_END -->
 
+
+<!-- ROBBER_VICTIM_DYNAMIC_TILE_FIX_V224_START -->
+<script>
+(function(){
+  const TILE_RESOURCE_ALIASES_224 = {
+    forest: "forest",
+    wood: "forest",
+    lumber: "forest",
+    木: "forest",
+    tree: "forest",
+    brick: "brick",
+    clay: "brick",
+    粘土: "brick",
+    sheep: "sheep",
+    wool: "sheep",
+    羊: "sheep",
+    wheat: "wheat",
+    grain: "wheat",
+    麦: "wheat",
+    ore: "ore",
+    stone: "ore",
+    rock: "ore",
+    石: "ore",
+    desert: "desert",
+    砂漠: "desert"
+  };
+
+  const TILE_STYLES_224 = {
+    forest: { bg: "linear-gradient(135deg,#1f6f36,#4ca34b 48%,#205f31)" },
+    brick:  { bg: "linear-gradient(135deg,#9b4c22,#c77932 55%,#7f361c)" },
+    sheep:  { bg: "linear-gradient(135deg,#5aa84f,#b6d76b 55%,#67b957)" },
+    wheat:  { bg: "linear-gradient(135deg,#c49025,#e3c85a 58%,#b77b1f)" },
+    ore:    { bg: "linear-gradient(135deg,#4d4d4d,#8b8b8b 52%,#2e2e2e)" },
+    desert: { bg: "linear-gradient(135deg,#c7964f,#ecd08a 55%,#b67f3d)" }
+  };
+
+  const COLOR_MAP_224 = {
+    red:    { label:'赤', pawn:'#d42626', accent:'#bd1717', dark:'#a01010', glow:'rgba(255,50,50,.52)' },
+    blue:   { label:'青', pawn:'#1d78d2', accent:'#1268b5', dark:'#0d4f91', glow:'rgba(45,135,255,.50)' },
+    green:  { label:'緑', pawn:'#2e9439', accent:'#2c8b34', dark:'#1f6b28', glow:'rgba(70,190,80,.50)' },
+    yellow: { label:'黄', pawn:'#e0ad22', accent:'#d49a17', dark:'#986b08', glow:'rgba(255,190,35,.50)' }
+  };
+
+  function playerColorKey224(player) {
+    return ["red","blue","green","yellow"][Number(player)] || "red";
+  }
+
+  function playerColor224(player) {
+    return COLOR_MAP_224[playerColorKey224(player)] || COLOR_MAP_224.red;
+  }
+
+  function playerName224(player) {
+    try {
+      if (typeof getPlayerName === "function") return getPlayerName(player);
+    } catch(e) {}
+    return playerColor224(player).label;
+  }
+
+  function normalizeResource224(value) {
+    if (value === null || value === undefined) return "";
+    const raw = String(value).trim();
+    return TILE_RESOURCE_ALIASES_224[raw] || TILE_RESOURCE_ALIASES_224[raw.toLowerCase()] || raw.toLowerCase();
+  }
+
+  function findTileFromArray224(arr, tileIndex) {
+    if (!Array.isArray(arr)) return null;
+    const idx = Number(tileIndex);
+
+    if (arr[idx]) return arr[idx];
+
+    return arr.find(t => {
+      if (!t || typeof t !== "object") return false;
+      return Number(t.index) === idx ||
+             Number(t.id) === idx ||
+             Number(t.tileIndex) === idx ||
+             Number(t.tileId) === idx;
+    }) || null;
+  }
+
+  function getTileObj224(tileIndex) {
+    const names = [
+      "tiles",
+      "boardTiles",
+      "hexTiles",
+      "landTiles",
+      "terrainTiles",
+      "tileData",
+      "board"
+    ];
+
+    for (const name of names) {
+      try {
+        const value = window[name];
+        if (!value) continue;
+
+        if (Array.isArray(value)) {
+          const found = findTileFromArray224(value, tileIndex);
+          if (found) return found;
+        } else if (typeof value === "object") {
+          if (value[tileIndex]) return value[tileIndex];
+          const found = Object.values(value).find(t => {
+            if (!t || typeof t !== "object") return false;
+            return Number(t.index) === Number(tileIndex) ||
+                   Number(t.id) === Number(tileIndex) ||
+                   Number(t.tileIndex) === Number(tileIndex) ||
+                   Number(t.tileId) === Number(tileIndex);
+          });
+          if (found) return found;
+        }
+      } catch(e) {}
+    }
+
+    return null;
+  }
+
+  function getResource224(tileIndex) {
+    const tile = getTileObj224(tileIndex);
+    if (tile) {
+      const candidates = [
+        tile.resource,
+        tile.type,
+        tile.kind,
+        tile.terrain,
+        tile.name,
+        tile.res
+      ];
+      for (const c of candidates) {
+        const normalized = normalizeResource224(c);
+        if (normalized) return normalized;
+      }
+    }
+
+    // Fallback arrays
+    const arrays = ["resources", "tileResources", "terrain", "terrains"];
+    for (const name of arrays) {
+      try {
+        const arr = window[name];
+        if (Array.isArray(arr) && arr[tileIndex] !== undefined) {
+          const n = normalizeResource224(arr[tileIndex]);
+          if (n) return n;
+        }
+      } catch(e) {}
+    }
+
+    return "forest";
+  }
+
+  function getNumber224(tileIndex) {
+    const tile = getTileObj224(tileIndex);
+    if (tile) {
+      const candidates = [
+        tile.number,
+        tile.num,
+        tile.dice,
+        tile.diceNumber,
+        tile.token,
+        tile.value,
+        tile.chit
+      ];
+      for (const c of candidates) {
+        if (c !== undefined && c !== null && c !== "") return c;
+      }
+    }
+
+    const arrays = ["numbers", "tileNumbers", "numberTokens", "diceNumbers", "chits"];
+    for (const name of arrays) {
+      try {
+        const arr = window[name];
+        if (Array.isArray(arr) && arr[tileIndex] !== undefined) return arr[tileIndex];
+      } catch(e) {}
+    }
+
+    return "?";
+  }
+
+  function getImageFromKnownMaps224(resource) {
+    const keys = {
+      forest: ["forest", "wood", "木"],
+      brick: ["brick", "clay", "粘土"],
+      sheep: ["sheep", "wool", "羊"],
+      wheat: ["wheat", "grain", "麦"],
+      ore: ["ore", "stone", "rock", "石"],
+      desert: ["desert", "砂漠"]
+    }[resource] || [resource];
+
+    const maps = ["tileImages", "terrainImages", "resourceImages", "images", "tileImageMap", "imageMap"];
+    for (const mapName of maps) {
+      try {
+        const map = window[mapName];
+        if (!map) continue;
+        for (const key of keys) {
+          const v = map[key];
+          if (!v) continue;
+          if (typeof v === "string") return v;
+          if (v.src) return v.src;
+        }
+      } catch(e) {}
+    }
+
+    return "";
+  }
+
+  function getImageFromTileObj224(tile, resource) {
+    if (!tile) return "";
+    const candidates = [tile.image, tile.img, tile.src, tile.url, tile.imageUrl, tile.imageSrc];
+    for (const c of candidates) {
+      if (!c) continue;
+      if (typeof c === "string") return c;
+      if (c.src) return c.src;
+    }
+    return getImageFromKnownMaps224(resource);
+  }
+
+  function renderVictimUi224(attackerPlayer, victimPlayer, tileIndex) {
+    const overlay = document.getElementById("rbVictimOverlay222");
+    const modal = document.getElementById("rbVictimModal222");
+    if (!overlay || !modal) return;
+
+    const attacker = playerColor224(attackerPlayer);
+    const victim = playerColor224(victimPlayer);
+
+    modal.style.setProperty("--rbVictimAccent222", attacker.accent);
+    modal.style.setProperty("--rbVictimAccentDark222", attacker.dark);
+    modal.style.setProperty("--rbVictimGlow222", attacker.glow);
+    modal.style.setProperty("--rbVictimPawn222", victim.pawn);
+
+    const tileObj = getTileObj224(tileIndex);
+    const resource = getResource224(tileIndex);
+    const style = TILE_STYLES_224[resource] || TILE_STYLES_224.forest;
+    const imageSrc = getImageFromTileObj224(tileObj, resource);
+    const number = getNumber224(tileIndex);
+
+    const tileEl = document.getElementById("rbVictimTile222");
+    const numEl = document.getElementById("rbVictimNumber222");
+    const nameEl = document.getElementById("rbVictimPlayerName222");
+
+    if (tileEl) {
+      tileEl.style.setProperty("--rbTileBg222", style.bg);
+      tileEl.style.setProperty("--rbTileImage222", imageSrc ? 'url("' + imageSrc + '")' : "none");
+    }
+    if (numEl) numEl.textContent = number;
+    if (nameEl) nameEl.textContent = victim.label + "の" + playerName224(victimPlayer);
+
+    if (typeof log === "function") {
+      log("被害UI表示：tile=" + tileIndex + " resource=" + resource + " number=" + number + (imageSrc ? " image=OK" : " image=なし"));
+    }
+
+    overlay.style.display = "flex";
+  }
+
+  // Override all victim UI entrypoints to robust dynamic renderer.
+  window.showRobberVictimNotice222 = renderVictimUi224;
+  window.showRobberVictimNotice221 = renderVictimUi224;
+  window.showRobberVictimNotice220 = renderVictimUi224;
+  window.showRobberVictimNotice219 = renderVictimUi224;
+  window.showRobberVictimNotice218 = renderVictimUi224;
+  window.showRobberVictimNotice215 = renderVictimUi224;
+
+  function fixVictimButton224() {
+    const btn =
+      document.getElementById("robberVictimTestBtn222") ||
+      document.getElementById("robberVictimTestBtn221") ||
+      document.getElementById("robberVictimTestBtn220") ||
+      document.getElementById("robberVictimTestBtn219") ||
+      document.getElementById("robberVictimTestBtn218") ||
+      document.getElementById("robberVictimTestBtn217");
+
+    if (!btn) return;
+
+    btn.onclick = function() {
+      let self = 1;
+      try {
+        if (typeof getSelfPlayer === "function") self = Number(getSelfPlayer());
+      } catch(e) {}
+      const attacker = self === 0 ? 1 : 0;
+      const tile = (typeof robberTileIndex !== "undefined" && robberTileIndex !== null) ? robberTileIndex : 0;
+      renderVictimUi224(attacker, self, tile);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fixVictimButton224);
+  } else {
+    fixVictimButton224();
+  }
+})();
+</script>
+<!-- ROBBER_VICTIM_DYNAMIC_TILE_FIX_V224_END -->
+
 </body>
 </html>
