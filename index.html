@@ -9856,7 +9856,7 @@ function previewGameStartConfirm(){
             <div class="rbLootName207">${c.label}　${escapeHtml(getPlayerName(p))}</div>
             <div class="rbLootResource207">資源：${count}枚</div>
           </div>
-          <button type="button" class="rbLootBtn207" onclick="robberMovePreviewPick212(${p})">選択</button>
+          <button type="button" class="rbLootBtn207" onclick="robberLootUiSteal213(${p})">奪う</button>
         </div>
       `;
     }).join("");
@@ -9866,6 +9866,121 @@ function previewGameStartConfirm(){
 })();
 </script>
 <!-- ROBBER_MOVE_PREVIEW_V212_END -->
+
+
+<!-- ROBBER_STEAL_CONNECT_V213_START -->
+<script>
+(function(){
+  function colorKey213(player) {
+    return ["red", "blue", "green", "yellow"][Number(player)] || "red";
+  }
+
+  function colorLabel213(player) {
+    return ["赤", "青", "緑", "黄"][Number(player)] || "赤";
+  }
+
+  function showRobberStealToast213(targetPlayer, resourceName) {
+    const toast = document.getElementById("rbToast207");
+    const text = document.getElementById("rbToastText207");
+    if (!toast || !text) return;
+
+    const colorClassMap = {
+      red: "rbTextRed207",
+      blue: "rbTextBlue207",
+      green: "rbTextGreen207",
+      yellow: "rbTextYellow207"
+    };
+
+    const key = colorKey213(targetPlayer);
+    const cls = colorClassMap[key] || "rbTextRed207";
+    const name = (typeof getPlayerName === "function") ? getPlayerName(targetPlayer) : colorLabel213(targetPlayer);
+
+    const suffix = resourceName ? "（" + resourceName + "）" : "";
+    text.innerHTML = '盗賊が <span class="' + cls + '">' + colorLabel213(targetPlayer) + '</span> の' + escapeHtml(name) + 'から資源を1枚奪いました' + suffix;
+
+    toast.style.display = "flex";
+    clearTimeout(window.__robberLootToastTimer213);
+    window.__robberLootToastTimer213 = setTimeout(() => {
+      toast.style.display = "none";
+    }, 1700);
+  }
+
+  function hideRobberLootUi213() {
+    if (typeof hideRobberLoot207 === "function") {
+      hideRobberLoot207();
+      return;
+    }
+    const overlay = document.getElementById("rbLootOverlay207");
+    if (overlay) overlay.style.display = "none";
+  }
+
+  window.robberLootUiSteal213 = function(targetPlayer) {
+    targetPlayer = Number(targetPlayer);
+
+    const select = document.getElementById("robberTarget");
+    if (select) select.value = String(targetPlayer);
+
+    const beforeCount = (typeof getTotalResourceCount === "function") ? getTotalResourceCount(targetPlayer) : 0;
+
+    if (beforeCount <= 0) {
+      if (typeof log === "function") {
+        log(getPlayerName(targetPlayer) + "は資源を持っていません。");
+      }
+      hideRobberLootUi213();
+      return;
+    }
+
+    let stolenResourceName = "";
+
+    try {
+      // 既存の盗賊奪取処理をそのまま利用する。
+      if (typeof stealResource === "function") {
+        const beforeHand = (resources && resources[targetPlayer]) ? {...resources[targetPlayer]} : null;
+
+        stealResource();
+
+        if (beforeHand && resources && resources[targetPlayer]) {
+          const names = ["wood", "brick", "sheep", "wheat", "ore"];
+          const label = {
+            wood: "木",
+            brick: "粘土",
+            sheep: "羊",
+            wheat: "麦",
+            ore: "石"
+          };
+          for (const r of names) {
+            if ((resources[targetPlayer][r] || 0) < (beforeHand[r] || 0)) {
+              stolenResourceName = label[r] || r;
+              break;
+            }
+          }
+        }
+
+        hideRobberLootUi213();
+        showRobberStealToast213(targetPlayer, stolenResourceName);
+        return;
+      }
+
+      if (typeof robTarget === "function") {
+        robTarget(targetPlayer);
+        hideRobberLootUi213();
+        showRobberStealToast213(targetPlayer, stolenResourceName);
+        return;
+      }
+
+      if (typeof log === "function") {
+        log("盗賊略奪UI：既存の資源奪取関数が見つかりませんでした。");
+      }
+    } catch (error) {
+      console.error(error);
+      if (typeof log === "function") {
+        log("盗賊略奪UI：資源奪取処理でエラーが発生しました。");
+      }
+    }
+  };
+})();
+</script>
+<!-- ROBBER_STEAL_CONNECT_V213_END -->
 
 </body>
 </html>
