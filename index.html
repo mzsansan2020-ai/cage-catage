@@ -9441,46 +9441,136 @@ function previewGameStartConfirm(){
 
   #rbToast207{
     position:fixed;
-    z-index:10120;
+    z-index:10125;
     left:50%;
     top:18%;
     transform:translateX(-50%);
     display:none;
     align-items:center;
-    gap:12px;
-    min-width:350px;
+    justify-content:center;
+    width:680px;
+    min-height:96px;
     max-width:calc(100vw - 34px);
-    padding:13px 16px;
-    border-radius:12px;
+    box-sizing:border-box;
+    padding:10px 118px 10px 140px;
+    border-radius:16px;
+    overflow:hidden;
+    color:#fff6d6;
     background:
-      linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0)),
-      linear-gradient(145deg,#2a0d0a,#100403);
-    border:3px solid var(--rbAccent,#ba1717);
-    color:#fff3cf;
+      radial-gradient(circle at 16% 50%, rgba(255,70,42,.22), transparent 30%),
+      radial-gradient(circle at 86% 42%, rgba(255,220,120,.14), transparent 25%),
+      linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 38%),
+      linear-gradient(135deg,#760606 0%,#b5120d 45%,#4a0505 100%);
+    border:3px solid #d49a32;
     box-shadow:
-      0 14px 34px rgba(0,0,0,.58),
-      0 0 20px var(--rbGlow,rgba(255,45,40,.45));
-    font-size:18px;
+      inset 0 0 0 2px rgba(255,236,168,.44),
+      0 14px 34px rgba(0,0,0,.50),
+      0 0 22px rgba(255,45,35,.42);
     font-weight:1000;
+    animation:rbLootResultIn236 .18s ease-out;
+  }
+  #rbToast207::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(90deg,rgba(255,255,255,.09),transparent 22%,transparent 78%,rgba(255,255,255,.08)),
+      repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 8px);
+    pointer-events:none;
   }
   .rbToastRobber207{
     width:48px;
     height:58px;
     flex:0 0 auto;
   }
+  #rbToast207 .robberIconNew211.toast{
+    position:absolute;
+    left:22px;
+    bottom:-6px;
+    width:112px;
+    height:102px;
+    flex:none;
+    filter:
+      drop-shadow(0 0 13px rgba(255,55,35,.68))
+      drop-shadow(0 8px 10px rgba(0,0,0,.58));
+  }
+  #rbToastText207{
+    position:relative;
+    z-index:1;
+    min-width:0;
+    text-align:center;
+    text-shadow:0 2px 2px rgba(0,0,0,.66);
+  }
+  .rbLootResultMain236{
+    font-size:25px;
+    line-height:1.18;
+    font-weight:1000;
+    letter-spacing:.03em;
+    white-space:nowrap;
+  }
+  .rbLootResultLine236{
+    margin-top:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    font-size:22px;
+    line-height:1.1;
+    font-weight:1000;
+    white-space:nowrap;
+  }
+  .rbLootResultPlayer236{
+    min-width:118px;
+    max-width:178px;
+    padding:7px 18px 8px;
+    box-sizing:border-box;
+    border-radius:999px;
+    border:3px solid rgba(255,120,110,.78);
+    background:linear-gradient(180deg,rgba(196,35,31,.94),rgba(112,10,10,.94));
+    color:#fff1e8;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    text-shadow:0 2px 2px rgba(0,0,0,.58);
+  }
+  .rbLootResultResource236{
+    min-width:108px;
+    padding:7px 20px 8px;
+    box-sizing:border-box;
+    border-radius:999px;
+    border:3px solid #c98422;
+    background:linear-gradient(180deg,#fff0c4,#e5a849 56%,#c67a1e);
+    color:#3b1d07;
+    text-shadow:0 1px 0 rgba(255,255,255,.65);
+  }
   .rbResourceCard207{
-    width:40px;
-    height:52px;
-    flex:0 0 auto;
+    position:absolute;
+    right:28px;
+    top:13px;
+    z-index:1;
+    width:74px;
+    height:74px;
+    flex:none;
     display:grid;
     place-items:center;
-    border-radius:7px;
-    border:2px solid #8a6628;
-    background:linear-gradient(#fff0b8,#e0bd67);
-    color:#6d4b11;
-    font-size:24px;
-    transform:rotate(9deg);
-    box-shadow:0 4px 8px rgba(0,0,0,.32);
+    border-radius:11px;
+    border:3px solid #f1d18a;
+    background:linear-gradient(180deg,#fff6d6,#d8a851);
+    color:#5b340f;
+    font-size:32px;
+    font-weight:1000;
+    transform:rotate(7deg);
+    box-shadow:0 5px 12px rgba(0,0,0,.36);
+    overflow:hidden;
+  }
+  .rbResourceCard207 img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  @keyframes rbLootResultIn236{
+    from{opacity:0;transform:translateX(-50%) translateY(8px) scale(.97);}
+    to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
   }
   .rbTextRed207{color:#ff615c;text-shadow:0 0 8px rgba(255,45,40,.6);}
   .rbTextBlue207{color:#55a9ff;text-shadow:0 0 8px rgba(55,135,255,.55);}
@@ -9964,24 +10054,77 @@ function previewGameStartConfirm(){
     return "";
   }
 
+  function normalizeResource236(resource) {
+    const raw = String(resource || "").trim();
+    const low = raw.toLowerCase();
+    if (["forest", "wood", "lumber", "木", "木材"].includes(low) || raw === "木" || raw === "木材") return "forest";
+    if (["brick", "clay", "粘土", "レンガ"].includes(low) || raw === "粘土" || raw === "レンガ") return "brick";
+    if (["sheep", "wool", "羊"].includes(low) || raw === "羊") return "sheep";
+    if (["wheat", "grain", "麦", "小麦"].includes(low) || raw === "麦" || raw === "小麦") return "wheat";
+    if (["ore", "stone", "rock", "石", "鉱石"].includes(low) || raw === "石" || raw === "鉱石") return "ore";
+    return low || "forest";
+  }
+
+  function resourceMeta236(resource) {
+    const key = normalizeResource236(resource);
+    const map = {
+      forest: { label:"木材", short:"木" },
+      brick: { label:"レンガ", short:"粘" },
+      sheep: { label:"羊", short:"羊" },
+      wheat: { label:"小麦", short:"麦" },
+      ore: { label:"鉱石", short:"石" }
+    };
+    return map[key] || { label:String(resource || "資源"), short:String(resource || "資").slice(0,1) || "資" };
+  }
+
+  function resourceImage236(resource) {
+    const key = normalizeResource236(resource);
+    try {
+      if (typeof tileImages !== "undefined") {
+        if (tileImages[key] && tileImages[key].src) return tileImages[key].src;
+        if (key === "forest" && tileImages.wood && tileImages.wood.src) return tileImages.wood.src;
+      }
+    } catch(e) {}
+    try {
+      if (typeof imageData !== "undefined") {
+        if (imageData[key]) return imageData[key];
+        if (key === "forest" && imageData.wood) return imageData.wood;
+      }
+    } catch(e) {}
+    return "";
+  }
+
+
   function showRobberStealToast214(targetPlayer, resourceName) {
     const toast = document.getElementById("rbToast207");
     const text = document.getElementById("rbToastText207");
     if (!toast || !text) return;
 
-    const colorClassMap = { red:"rbTextRed207", blue:"rbTextBlue207", green:"rbTextGreen207", yellow:"rbTextYellow207" };
-    const key = colorKey214(targetPlayer);
-    const cls = colorClassMap[key] || "rbTextRed207";
     const targetName = (typeof getPlayerName === "function") ? getPlayerName(targetPlayer) : colorLabel214(targetPlayer);
-    const suffix = resourceName ? "（" + resourceName + "）" : "";
+    const meta = resourceMeta236(resourceName);
 
     text.innerHTML =
-      '盗賊が <span class="' + cls + '">' + colorLabel214(targetPlayer) + '</span> の' +
-      escapeHtml(targetName) + 'から資源を1枚奪いました' + suffix;
+      '<div class="rbLootResultMain236">盗賊が資源を1枚奪いました</div>' +
+      '<div class="rbLootResultLine236">' +
+        '<span class="rbLootResultPlayer236">' + escapeHtml(colorLabel214(targetPlayer) + 'の' + targetName) + '</span>' +
+        '<span>から</span>' +
+        '<span class="rbLootResultResource236">' + escapeHtml(meta.label) + '</span>' +
+        '<span>を奪いました</span>' +
+      '</div>';
+
+    const card = toast.querySelector('.rbResourceCard207');
+    if (card) {
+      const src = resourceImage236(resourceName);
+      if (src) {
+        card.innerHTML = '<img alt="奪った資源" src="' + src + '">';
+      } else {
+        card.textContent = meta.short;
+      }
+    }
 
     toast.style.display = "flex";
     clearTimeout(window.__robberLootToastTimer214);
-    window.__robberLootToastTimer214 = setTimeout(() => { toast.style.display = "none"; }, 1700);
+    window.__robberLootToastTimer214 = setTimeout(() => { toast.style.display = "none"; }, 2200);
   }
 
   function hideRobberLootUi214() {
